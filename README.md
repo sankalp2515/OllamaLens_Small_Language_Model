@@ -23,7 +23,6 @@
    - [Benchmark Metrics](#benchmark-metrics)
 9. [Model Comparison Study](#model-comparison-study)
 10. [How to Run](#how-to-run)
-11. [How to Explain This to a Recruiter](#how-to-explain-this-to-a-recruiter)
 
 ---
 
@@ -441,25 +440,3 @@ curl -X POST http://localhost:8000/benchmark/run \
 
 ---
 
-## How to Explain This to a Recruiter
-
-Here's a concise narrative you can use:
-
-> "OllamaLens is a local AI benchmarking platform I built to run and compare small language models on my own GPU — no cloud, no API cost. The backend is FastAPI because it's fully async, which is essential for streaming tokens to the browser in real time using Server-Sent Events. I used Pydantic to validate every API boundary, and Tenacity for retry logic with exponential back-off — the same patterns you'd use in production to handle LLM unreliability. For structured output, I built a pipeline that forces the model to return valid JSON and retries with a corrective prompt if validation fails. All benchmark data goes into SQLite via an async ORM, and the report endpoint aggregates it into a comparison of Time To First Token and Tokens Per Second across three models. Everything runs on a 6 GB GPU using 4-bit quantization, which required understanding the VRAM trade-offs for each model."
-
-**Likely recruiter questions:**
-
-*"What is Pydantic and why did you use it?"*  
-→ It's a data validation library. I use it to validate every request and response at the API boundary, so invalid data never reaches the business logic. It turns runtime errors into clear HTTP 422 responses with field-level messages.
-
-*"What is SSE? Why not WebSockets?"*  
-→ Server-Sent Events is a one-way streaming channel from server to browser. Token streaming is inherently one-directional, so SSE is simpler and more appropriate. WebSockets add bidirectional complexity I don't need.
-
-*"What is TTFT and why does it matter?"*  
-→ Time To First Token — how long until the user sees the first word of the response. Even if overall speed is slow, a low TTFT makes the interface feel responsive. It's a key UX metric for LLM products.
-
-*"Why SQLite?"*  
-→ Zero infrastructure cost and zero setup. For a local tool with hundreds of rows, SQLite is faster to set up and operationally simpler than Postgres. If this needed to scale to multiple users, I'd swap the connection string to PostgreSQL — SQLAlchemy abstracts the difference.
-
-*"What is q4_K_M quantization?"*  
-→ Quantization reduces model weight precision from 16-bit floats to 4-bit integers, cutting VRAM by 4×. K-quant medium (K_M) uses a smarter non-uniform quantization that preserves accuracy better than simple Q4. On my 6 GB GPU it's the difference between being able to run a 7B model at all or not.
