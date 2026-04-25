@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OllamaLens — Project Documentation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syne:wght@400;600;800&family=Inter:wght@400;500&display=swap');
+
+  :root {
+    --bg:        #0c0c0f;
+    --surface:   #131318;
+    --border:    #22222e;
+    --accent:    #6ee7b7;
+    --accent2:   #818cf8;
+    --accent3:   #f59e0b;
+    --text:      #e2e8f0;
+    --muted:     #64748b;
+    --code-bg:   #1a1a24;
+    --tag-bg:    #1e2a24;
+    --radius:    8px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* ── Sidebar nav ── */
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    width: 240px; height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 32px 20px;
+    z-index: 100;
+  }
+
+  .sidebar-logo {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--accent);
+    margin-bottom: 28px;
+    letter-spacing: -0.5px;
+  }
+  .sidebar-logo span { color: var(--muted); font-weight: 400; }
+
+  .nav-section-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 20px 0 8px;
+  }
+
+  .nav-link {
+    display: block;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 13px;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 0.15s, background 0.15s;
+    margin-bottom: 2px;
+  }
+  .nav-link:hover { color: var(--accent); background: var(--tag-bg); }
+
+  /* ── Main content ── */
+  .main {
+    margin-left: 240px;
+    max-width: 900px;
+    padding: 60px 48px 120px;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 48px;
+    margin-bottom: 64px;
+  }
+
+  .hero-tag {
+    display: inline-block;
+    background: var(--tag-bg);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+  }
+
+  .hero h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 52px;
+    font-weight: 800;
+    letter-spacing: -2px;
+    line-height: 1;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-sub {
+    font-size: 18px;
+    color: var(--muted);
+    max-width: 560px;
+    margin-bottom: 32px;
+  }
+
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .badge.green  { border-color: #065f46; background: #052e1c; color: var(--accent); }
+  .badge.blue   { border-color: #1e40af; background: #0f172a; color: var(--accent2); }
+  .badge.amber  { border-color: #92400e; background: #1c0a00; color: var(--accent3); }
+  .badge .dot   { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* ── Section headings ── */
+  section { margin-bottom: 72px; }
+  section:target { scroll-margin-top: 32px; }
+
+  h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin-bottom: 24px;
+    color: var(--text);
+    border-left: 3px solid var(--accent);
+    padding-left: 16px;
+  }
+
+  h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    margin: 32px 0 12px;
+    color: var(--accent2);
+  }
+
+  h4 {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin: 24px 0 8px;
+  }
+
+  p { margin-bottom: 16px; }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ── Code blocks ── */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    overflow-x: auto;
+    margin: 16px 0 24px;
+    position: relative;
+  }
+
+  pre code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #a5f3c5;
+  }
+
+  code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--accent);
+  }
+
+  pre code { background: none; border: none; padding: 0; }
+
+  .code-label {
+    position: absolute;
+    top: 10px; right: 14px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+
+  /* ── Tables ── */
+  .table-wrap { overflow-x: auto; margin: 16px 0 24px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+
+  thead tr {
+    background: var(--surface);
+    border-bottom: 2px solid var(--accent);
+  }
+
+  th {
+    text-align: left;
+    padding: 10px 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  tr:hover td { background: #11111a; }
+
+  /* ── Cards ── */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+    margin: 16px 0 24px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: var(--accent); }
+
+  .card-icon { font-size: 24px; margin-bottom: 10px; }
+  .card-title { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  .card-text { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+  /* ── Architecture diagram ── */
+  .arch-box {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.8;
+    color: #94a3b8;
+    margin: 16px 0 24px;
+    overflow-x: auto;
+  }
+
+  .arch-box .layer-browser  { color: #818cf8; }
+  .arch-box .layer-fastapi  { color: #6ee7b7; }
+  .arch-box .layer-ollama   { color: #f59e0b; }
+  .arch-box .layer-db       { color: #f87171; }
+  .arch-box .arrow          { color: var(--muted); }
+
+  /* ── Decision callout ── */
+  .decision {
+    border-left: 3px solid var(--accent2);
+    background: #1a1a2a;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 16px 20px;
+    margin: 16px 0 24px;
+    font-size: 14px;
+  }
+  .decision strong { color: var(--accent2); display: block; margin-bottom: 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* ── Recruiter Q&A ── */
+  .qa-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+
+  .qa-q {
+    padding: 14px 20px;
+    background: #18182a;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--accent2);
+    border-bottom: 1px solid var(--border);
+  }
+  .qa-q::before { content: "Q: "; color: var(--muted); font-weight: 400; }
+
+  .qa-a {
+    padding: 14px 20px;
+    font-size: 14px;
+    color: #94a3b8;
+    line-height: 1.6;
+  }
+
+  /* ── Flow diagram ── */
+  .flow {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0;
+    margin: 16px 0 24px;
+    font-size: 13px;
+  }
+
+  .flow-step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .flow-arrow {
+    color: var(--accent);
+    font-size: 18px;
+    padding: 0 8px;
+  }
+
+  /* ── Metric pill ── */
+  .metric-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 16px 0 24px;
+  }
+
+  .metric-pill {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 40px;
+    padding: 8px 18px;
+    text-align: center;
+  }
+
+  .metric-pill .val {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--accent);
+    display: block;
+  }
+
+  .metric-pill .lbl {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════
+     SIDEBAR
+══════════════════════════════════════════════════ -->
+<nav class="sidebar">
+  <div class="sidebar-logo">Ollama<span>Lens</span></div>
+
+  <div class="nav-section-label">Overview</div>
+  <a class="nav-link" href="#what">What is it?</a>
+  <a class="nav-link" href="#why">Why build this?</a>
+  <a class="nav-link" href="#architecture">Architecture</a>
+
+  <div class="nav-section-label">Technical</div>
+  <a class="nav-link" href="#hardware">Hardware Constraints</a>
+  <a class="nav-link" href="#stack">Tech Stack</a>
+  <a class="nav-link" href="#structure">File Structure</a>
+  <a class="nav-link" href="#endpoints">API Endpoints</a>
+
+  <div class="nav-section-label">Concepts</div>
+  <a class="nav-link" href="#async">Async I/O</a>
+  <a class="nav-link" href="#sse">SSE Streaming</a>
+  <a class="nav-link" href="#pydantic">Pydantic</a>
+  <a class="nav-link" href="#retry">Retry Logic</a>
+  <a class="nav-link" href="#structured">Structured JSON</a>
+  <a class="nav-link" href="#metrics">Benchmark Metrics</a>
+
+  <div class="nav-section-label">Reference</div>
+  <a class="nav-link" href="#models">Model Comparison</a>
+  <a class="nav-link" href="#run">How to Run</a>
+  <a class="nav-link" href="#recruiter">Recruiter Guide</a>
+</nav>
+
+<!-- ══════════════════════════════════════════════════
+     MAIN
+══════════════════════════════════════════════════ -->
+<main class="main">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-tag">Project Documentation v1.0</div>
+    <h1>OllamaLens</h1>
+    <p class="hero-sub">
+      A local, offline AI assistant and benchmarking platform for Small Language Models.
+      Zero cloud. Zero API cost. Runs entirely on your own GPU.
+    </p>
+    <div class="badges">
+      <span class="badge green"><span class="dot"></span>No Cloud Required</span>
+      <span class="badge blue"><span class="dot"></span>FastAPI + Python</span>
+      <span class="badge amber"><span class="dot"></span>GTX 1660 Ti Optimised</span>
+      <span class="badge green"><span class="dot"></span>Streaming SSE</span>
+      <span class="badge blue"><span class="dot"></span>Pydantic v2</span>
+      <span class="badge amber"><span class="dot"></span>SQLite Persistence</span>
+    </div>
+  </div>
+
+  <!-- WHAT -->
+  <section id="what">
+    <h2>What is OllamaLens?</h2>
+    <p>OllamaLens is a full-stack application that lets you interact with, benchmark, and compare local Large Language Models — all running on your own machine using Ollama.</p>
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-icon">💬</div>
+        <div class="card-title">Chat Interface</div>
+        <div class="card-text">Stream responses from Llama 3, Mistral, or Phi-3 in real time. Tokens appear as they're generated, just like ChatGPT.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">📊</div>
+        <div class="card-title">Benchmark Runner</div>
+        <div class="card-text">Measure Time To First Token (TTFT) and Tokens Per Second (TPS) across N runs. Stored in SQLite for trend analysis.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">⚔️</div>
+        <div class="card-title">Model Comparison</div>
+        <div class="card-text">Send the same prompt to all three models and see side-by-side performance metrics and response quality.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🔒</div>
+        <div class="card-title">Structured JSON</div>
+        <div class="card-text">Force the LLM to output schema-conformant JSON. Auto-retries with corrective prompts if validation fails.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">📋</div>
+        <div class="card-title">Technical Report</div>
+        <div class="card-text">Auto-generated comparison report from all benchmark data. Exportable as JSON or Markdown.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🔌</div>
+        <div class="card-title">Fully Offline</div>
+        <div class="card-text">After pulling models once, the entire stack runs without internet. Your data never leaves your machine.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHY -->
+  <section id="why">
+    <h2>Why Build This?</h2>
+    <p>This project demonstrates real-world engineering skills that appear in production AI systems:</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Engineering Skill</th><th>How It's Demonstrated</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>LLM Integration</td><td>Ollama REST API, streaming, model switching via enum</td></tr>
+          <tr><td>Async API Design</td><td>FastAPI with typed routes, Pydantic validation, HTTP status codes</td></tr>
+          <tr><td>Reliability Patterns</td><td>Tenacity retry with exponential back-off on transient failures</td></tr>
+          <tr><td>Data Validation</td><td>Pydantic v2 on every request/response boundary</td></tr>
+          <tr><td>Database Design</td><td>SQLModel ORM, async sessions, idempotent schema init</td></tr>
+          <tr><td>Performance Measurement</td><td>Wall-clock TTFT and TPS, statistically valid N-run medians</td></tr>
+          <tr><td>Streaming Architecture</td><td>SSE for one-way token streaming, AsyncGenerator patterns</td></tr>
+          <tr><td>Documentation</td><td>Inline decision rationale, recruiter-ready explanations</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ARCHITECTURE -->
+  <section id="architecture">
+    <h2>Architecture Overview</h2>
+    <div class="arch-box">
+      <span class="layer-browser">┌─────────────────────────────────────────────────────┐<br>
+│                   BROWSER (localhost)               │<br>
+│  React + Vite + Tailwind + Recharts                 │<br>
+│  Chat UI · Benchmark Dashboard · Report View        │<br>
+└──────────────────────┬──────────────────────────────┘</span>
+<span class="arrow">                       │ HTTP + SSE (Server-Sent Events)</span>
+<span class="layer-fastapi">┌──────────────────────▼──────────────────────────────┐<br>
+│           FastAPI Backend  (Python 3.11+)           │<br>
+│                                                     │<br>
+│  /chat/generate     → streams tokens via SSE        │<br>
+│  /chat/structured   → JSON-mode + Pydantic validate │<br>
+│  /benchmark/run     → timed N-run inference suite   │<br>
+│  /compare/run       → multi-model side-by-side      │<br>
+│  /report            → aggregated technical report   │<br>
+│                                                     │<br>
+│  Pydantic v2  ·  Tenacity  ·  SQLModel  ·  httpx   │<br>
+└──────────────────────┬──────────────────────────────┘</span>
+<span class="arrow">                       │ REST API (localhost:11434)</span>
+<span class="layer-ollama">┌──────────────────────▼──────────────────────────────┐<br>
+│                    Ollama                           │<br>
+│  llama3:8b-instruct-q4_K_M   (~4.7 GB VRAM)        │<br>
+│  mistral:7b-instruct-q4_K_M  (~4.1 GB VRAM)        │<br>
+│  phi3:mini                   (~2.3 GB VRAM)         │<br>
+└─────────────────────────────────────────────────────┘</span>
+<span class="layer-db">       SQLite file: ollamalens.db  (zero infra cost)</span>
+    </div>
+
+    <h3>Request Flow (Chat Streaming)</h3>
+    <div class="flow">
+      <div class="flow-step">User types prompt</div><div class="flow-arrow">→</div>
+      <div class="flow-step">POST /chat/generate</div><div class="flow-arrow">→</div>
+      <div class="flow-step">FastAPI validates</div><div class="flow-arrow">→</div>
+      <div class="flow-step">httpx stream to Ollama</div><div class="flow-arrow">→</div>
+      <div class="flow-step">GPU generates tokens</div><div class="flow-arrow">→</div>
+      <div class="flow-step">SSE chunks to browser</div><div class="flow-arrow">→</div>
+      <div class="flow-step">EventSource fires</div><div class="flow-arrow">→</div>
+      <div class="flow-step">UI updates</div>
+    </div>
+  </section>
+
+  <!-- HARDWARE -->
+  <section id="hardware">
+    <h2>Hardware Constraints &amp; Design Decisions</h2>
+    <p><strong>Hardware:</strong> Intel i5 9th Gen · 32 GB RAM · NVIDIA GTX 1660 Ti (6 GB VRAM)</p>
+    <p>Every technical decision traces back to the VRAM ceiling. Here's why:</p>
+
+    <h3>VRAM is the binding constraint</h3>
+    <div class="decision">
+      <strong>Decision → q4_K_M Quantization</strong>
+      A 7B model in FP16 precision requires ~14 GB VRAM — impossible on a 6 GB card. q4_K_M (4-bit K-quant medium) reduces this to ~4 GB with only ~2% quality degradation. The "K" in K_M means it uses a non-uniform quantization scheme that preserves the accuracy of "important" weights better than simple Q4.
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Precision</th><th>VRAM (7B model)</th><th>Quality</th><th>Fits 1660 Ti?</th></tr></thead>
+        <tbody>
+          <tr><td>FP16</td><td>~14 GB</td><td>100%</td><td>❌ No</td></tr>
+          <tr><td>Q8</td><td>~8 GB</td><td>~99%</td><td>❌ No</td></tr>
+          <tr><td>Q5_K_M</td><td>~5.5 GB</td><td>~97%</td><td>⚠️ Barely</td></tr>
+          <tr><td>Q4_K_M ✓</td><td>~4.1 GB</td><td>~96%</td><td>✅ Yes (headroom)</td></tr>
+          <tr><td>Q3</td><td>~3.3 GB</td><td>~91%</td><td>✅ Yes (poor quality)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>RAM (32 GB) — a strategic advantage</h3>
+    <p>All three model files (~12 GB total) fit in RAM simultaneously. When you switch models, Ollama transfers the new model from RAM → VRAM in 3–8 seconds rather than reading from disk (which would take 30–60 seconds). The 32 GB RAM makes cold-start benchmarks more consistent.</p>
+
+    <h3>Only one model in VRAM at a time</h3>
+    <p>The <code>/compare/run</code> endpoint sends the same prompt to multiple models, but Ollama serialises GPU access automatically. The benchmark results reflect real-world single-user throughput.</p>
+  </section>
+
+  <!-- STACK -->
+  <section id="stack">
+    <h2>Tech Stack — Every Tool Explained</h2>
+
+    <h3>Ollama</h3>
+    <p><strong>What:</strong> Local LLM runtime. Manages model downloads, CUDA inference, and exposes a REST API at <code>localhost:11434</code>.</p>
+    <div class="decision">
+      <strong>Why not use llama.cpp directly?</strong>
+      Ollama wraps llama.cpp and adds: automatic GPU detection, model version management, a stable REST API, and built-in JSON mode. We get identical performance with a maintained interface instead of managing C++ binaries and CUDA flags manually.
+    </div>
+
+    <h3>FastAPI</h3>
+    <p><strong>What:</strong> Modern Python async web framework. Auto-generates OpenAPI docs at <code>/docs</code>.</p>
+    <div class="decision">
+      <strong>Why not Flask?</strong>
+      Flask is synchronous. Each request occupies a thread. For SSE token streaming (one socket per active chat), Flask would need one thread per user. FastAPI is ASGI-based — one process can handle thousands of concurrent SSE streams on the event loop. No threading complexity, no race conditions.
+    </div>
+    <div class="decision">
+      <strong>Why not Django REST Framework?</strong>
+      Django adds significant setup overhead (ORM migrations, settings files, app registry). For a focused API with ~8 endpoints, FastAPI delivers the same reliability in a fraction of the code. The built-in Pydantic integration means zero serialiser boilerplate.
+    </div>
+
+    <h3>Pydantic v2</h3>
+    <p><strong>What:</strong> Data validation library using Python type annotations. Every API request and response is a Pydantic model.</p>
+    <div class="decision">
+      <strong>Why validate at the boundary?</strong>
+      LLMs are probabilistic — they sometimes omit fields, change types, or return malformed data. Without Pydantic, a missing field causes an AttributeError deep in business logic with a cryptic stack trace. With Pydantic, invalid data is caught at the HTTP boundary and returns a structured 422 response with field-level error messages. Business logic never sees invalid data.
+    </div>
+    <pre><code class="language-python"># Example: if you POST {"model": "gpt-4", "prompt": "  "}, FastAPI returns:
+{
+  "detail": [
+    {"loc": ["body", "model"], "msg": "value is not a valid enum member"},
+    {"loc": ["body", "prompt"], "msg": "prompt must not be blank or whitespace only"}
+  ]
+}</code></pre>
+
+    <h3>httpx</h3>
+    <p><strong>What:</strong> Async HTTP client used to communicate with Ollama's REST API.</p>
+    <div class="decision">
+      <strong>Why not `requests`?</strong>
+      `requests` is synchronous. Calling it inside an async FastAPI route would block the entire event loop — no other requests could be handled while waiting for Ollama. httpx has an identical API but supports async/await, streaming response bodies, and HTTP/2 out of the box.
+    </div>
+    <pre><code class="language-python"># Separate timeouts for different failure modes:
+OLLAMA_TIMEOUT = httpx.Timeout(
+    connect=5.0,   # localhost connection: should be instant
+    read=120.0,    # cold model + 500 tokens can take 30+ seconds
+    write=10.0,
+    pool=5.0,
+)</code></pre>
+
+    <h3>Tenacity</h3>
+    <p><strong>What:</strong> Retry library with a decorator API. Handles exponential back-off, conditional retry, and logging.</p>
+    <div class="decision">
+      <strong>Why not write retry loops manually?</strong>
+      Manual retry adds ~30 lines of fragile, untested code. Tenacity encodes battle-tested retry behaviour in 4 decorator arguments. It also logs retry attempts automatically, which is invaluable for debugging.
+    </div>
+    <pre><code class="language-python">@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=8),  # 2s → 4s → 8s
+    retry=retry_if_exception_type((httpx.ReadTimeout, httpx.ConnectError)),
+)
+async def generate(self, model, prompt):
+    ...</code></pre>
+
+    <h3>SQLModel + aiosqlite</h3>
+    <p><strong>What:</strong> SQLModel = Pydantic + SQLAlchemy ORM in a single class definition. aiosqlite = async SQLite driver.</p>
+    <div class="decision">
+      <strong>Why SQLite instead of PostgreSQL?</strong>
+      PostgreSQL requires a running server process, Docker, or a cloud subscription. SQLite is a single file — perfect for "zero infrastructure cost". For a local tool with fewer than 10,000 rows, SQLite is faster and simpler with no operational overhead.
+    </div>
+    <div class="decision">
+      <strong>Why SQLModel over raw SQLAlchemy?</strong>
+      SQLModel unifies the Pydantic schema and the database table in one class. No risk of the API response schema drifting out of sync with the database columns. One source of truth.
+    </div>
+    <pre><code class="language-python">class BenchmarkRun(SQLModel, table=True):
+    # This single class is BOTH the SQLite table AND the Pydantic response model
+    id: Optional[int] = SQLField(default=None, primary_key=True)
+    model: str
+    tokens_per_second: float
+    time_to_first_token_ms: float
+    ...</code></pre>
+
+    <h3>jsonschema</h3>
+    <p><strong>What:</strong> JSON Schema validator (RFC draft-07).</p>
+    <div class="decision">
+      <strong>Why not Pydantic for runtime JSON validation?</strong>
+      Pydantic models require a static class definition at import time. For <code>/chat/structured</code>, the user supplies an arbitrary schema at runtime as a dict — we don't know the shape ahead of time. <code>jsonschema.validate(instance, schema)</code> works with any dict-format schema at runtime.
+    </div>
+  </section>
+
+  <!-- STRUCTURE -->
+  <section id="structure">
+    <h2>Project Structure</h2>
+    <pre><code>ollamalens/
+│
+├── backend/
+│   ├── main.py                    # FastAPI app factory, CORS, router registration
+│   ├── requirements.txt           # All dependencies with inline explanations
+│   │
+│   ├── core/                      # Infrastructure layer
+│   │   ├── config.py              # pydantic-settings: typed configuration
+│   │   ├── database.py            # SQLite engine, session factory, init_db()
+│   │   └── ollama_client.py       # httpx async client, retry, streaming
+│   │
+│   ├── models/                    # Data shape layer
+│   │   └── schemas.py             # ALL Pydantic + SQLModel definitions
+│   │
+│   ├── routers/                   # HTTP layer (one file per domain)
+│   │   ├── chat.py                # /chat/* endpoints + SSE streaming
+│   │   ├── benchmark.py           # /benchmark/* endpoints
+│   │   ├── compare.py             # /compare/* endpoints
+│   │   └── report.py              # /report endpoint
+│   │
+│   └── utils/                     # Business logic layer
+│       ├── benchmarker.py         # TTFT + TPS measurement logic
+│       ├── structured_output.py   # JSON mode + clean/retry pipeline
+│       └── report_generator.py    # Aggregates DB data into report sections
+│
+├── .env.example                   # Copy to .env, edit as needed
+└── README.md / README.html        # This documentation</code></pre>
+    <p><strong>Design principle:</strong> One responsibility per file. <code>ollama_client.py</code> only handles HTTP. <code>benchmarker.py</code> only handles timing. This makes each file testable in isolation and easy to explain in an interview.</p>
+  </section>
+
+  <!-- ENDPOINTS -->
+  <section id="endpoints">
+    <h2>API Endpoints</h2>
+    <p>All endpoints are documented interactively at <code>http://localhost:8000/docs</code> after starting the server.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Method</th><th>Path</th><th>What It Does</th></tr></thead>
+        <tbody>
+          <tr><td><code>GET</code></td><td><code>/health</code></td><td>Lightweight liveness check</td></tr>
+          <tr><td><code>GET</code></td><td><code>/chat/models</code></td><td>List models currently in Ollama</td></tr>
+          <tr><td><code>POST</code></td><td><code>/chat/generate</code></td><td>Chat with streaming SSE or single JSON response</td></tr>
+          <tr><td><code>POST</code></td><td><code>/chat/structured</code></td><td>JSON-mode generation with schema validation + retry</td></tr>
+          <tr><td><code>POST</code></td><td><code>/benchmark/run</code></td><td>Run N-iteration benchmark, persist to SQLite</td></tr>
+          <tr><td><code>GET</code></td><td><code>/benchmark/history</code></td><td>All past benchmark runs (filterable by model)</td></tr>
+          <tr><td><code>POST</code></td><td><code>/compare/run</code></td><td>Same prompt → multiple models, ranked results</td></tr>
+          <tr><td><code>GET</code></td><td><code>/report</code></td><td>Full technical report aggregated from DB</td></tr>
+          <tr><td><code>GET</code></td><td><code>/report/markdown</code></td><td>Same report as Markdown text</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ASYNC -->
+  <section id="async">
+    <h2>Async I/O with FastAPI</h2>
+    <p>FastAPI uses Python's <code>asyncio</code> event loop. Every route function is <code>async def</code>:</p>
+    <pre><code class="language-python"># NON-blocking: while waiting for Ollama, the event loop
+# handles other requests. No threads needed.
+async def generate(request: ChatRequest):
+    response = await client.generate(...)  # yields to event loop
+    return response</code></pre>
+    <p>This is the same model used by Node.js — one process, many concurrent I/O operations. On a machine where the GPU is the bottleneck (not the CPU), async is the correct choice because all the waiting is I/O waiting, not CPU waiting.</p>
+  </section>
+
+  <!-- SSE -->
+  <section id="sse">
+    <h2>SSE Streaming</h2>
+    <p>Server-Sent Events is a one-way channel from server to browser. It's how tokens appear in real time.</p>
+
+    <h3>Why SSE and not WebSockets?</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Factor</th><th>SSE</th><th>WebSockets</th></tr></thead>
+        <tbody>
+          <tr><td>Direction</td><td>Server → Client only</td><td>Bidirectional</td></tr>
+          <tr><td>Protocol</td><td>Plain HTTP</td><td>Upgrade handshake required</td></tr>
+          <tr><td>Auto-reconnect</td><td>✅ Built-in</td><td>❌ Manual</td></tr>
+          <tr><td>Browser support</td><td>EventSource API (native)</td><td>WebSocket API (native)</td></tr>
+          <tr><td>Complexity</td><td>Low</td><td>Higher</td></tr>
+          <tr><td>Good for token streaming?</td><td>✅ Yes — one-way</td><td>Overkill</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Wire Format</h3>
+    <pre><code>data: {"token": "Hello"}\n\n
+data: {"token": " world"}\n\n
+data: {"done": true, "eval_tokens": 42, "total_duration_ms": 1200}\n\n
+data: [DONE]\n\n</code></pre>
+    <p>Each <code>\n\n</code> flushes the chunk to the browser, triggering an <code>onmessage</code> event in the JavaScript <code>EventSource</code> API.</p>
+  </section>
+
+  <!-- PYDANTIC -->
+  <section id="pydantic">
+    <h2>Pydantic v2 Validation</h2>
+    <p>Every API boundary is guarded by a Pydantic model. Here's the full validation chain for a chat request:</p>
+    <div class="flow">
+      <div class="flow-step">HTTP Body arrives</div><div class="flow-arrow">→</div>
+      <div class="flow-step">ChatRequest.model_validate()</div><div class="flow-arrow">→</div>
+      <div class="flow-step">Enum check (model name)</div><div class="flow-arrow">→</div>
+      <div class="flow-step">Field validator (blank check)</div><div class="flow-arrow">→</div>
+      <div class="flow-step">Route handler runs</div>
+    </div>
+    <p>If any step fails, FastAPI returns HTTP 422 with structured error details before your code runs. This is the "fail fast" principle — detect errors as early as possible.</p>
+    <pre><code class="language-python">class ChatRequest(BaseModel):
+    model: SupportedModel   # MUST be "llama3:8b...", "mistral:7b...", or "phi3:mini"
+    prompt: str = Field(..., min_length=1, max_length=8000)
+
+    @field_validator("prompt")
+    @classmethod
+    def prompt_not_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("prompt must not be blank or whitespace only")
+        return v.strip()   # also strips whitespace as a side effect</code></pre>
+  </section>
+
+  <!-- RETRY -->
+  <section id="retry">
+    <h2>Retry Logic with Tenacity</h2>
+    <p>LLMs have two common transient failure modes on limited hardware:</p>
+    <ul style="margin: 0 0 16px 20px; line-height: 2;">
+      <li><strong>ReadTimeout</strong> — model still loading into VRAM, takes longer than expected</li>
+      <li><strong>ConnectError</strong> — Ollama daemon briefly unavailable</li>
+    </ul>
+    <p>The retry decorator on <code>OllamaClient.generate()</code> handles both automatically:</p>
+    <pre><code class="language-python">@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=8),
+    retry=retry_if_exception_type((httpx.ReadTimeout, httpx.ConnectError)),
+    before_sleep=before_sleep_log(logger, logging.WARNING),  # auto-logs
+    reraise=True,  # if all attempts fail, re-raise the original exception
+)
+async def generate(self, model, prompt):
+    ...</code></pre>
+
+    <h3>Why exponential back-off?</h3>
+    <p>If the GPU is swapping memory, retrying immediately makes the problem worse. Exponential back-off gives the system time to recover:</p>
+    <div class="metric-row">
+      <div class="metric-pill"><span class="val">2s</span><span class="lbl">Attempt 2 wait</span></div>
+      <div class="metric-pill"><span class="val">4s</span><span class="lbl">Attempt 3 wait</span></div>
+      <div class="metric-pill"><span class="val">raise</span><span class="lbl">After 3 failures</span></div>
+    </div>
+  </section>
+
+  <!-- STRUCTURED -->
+  <section id="structured">
+    <h2>Structured JSON Output Pipeline</h2>
+    <p>The <code>POST /chat/structured</code> endpoint forces the LLM to return valid, schema-conformant JSON. Small quantised models occasionally emit malformed output — the pipeline handles this gracefully:</p>
+    <div class="flow" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+      <div class="flow-step">1. Append JSON instruction to system prompt</div>
+      <div class="flow-arrow" style="padding: 0 0 0 20px;">↓</div>
+      <div class="flow-step">2. Set format="json" in Ollama (constrains token sampling)</div>
+      <div class="flow-arrow" style="padding: 0 0 0 20px;">↓</div>
+      <div class="flow-step">3. Strip markdown fences from response (```json...```)</div>
+      <div class="flow-arrow" style="padding: 0 0 0 20px;">↓</div>
+      <div class="flow-step">4. json.loads() — parse to Python dict</div>
+      <div class="flow-arrow" style="padding: 0 0 0 20px;">↓</div>
+      <div class="flow-step">5. jsonschema.validate(dict, user_schema)</div>
+      <div class="flow-arrow" style="padding: 0 0 0 20px;">↓</div>
+      <div class="flow-step">6. If invalid: inject error into correction prompt, retry (max 3×)</div>
+      <div class="flow-arrow" style="padding: 0 0 0 20px;">↓</div>
+      <div class="flow-step">7. Return validated dict + attempt count</div>
+    </div>
+    <p style="margin-top: 16px;">The <code>attempts</code> field in the response is a reliability signal — a model that consistently needs 3 attempts is less suitable for structured output tasks.</p>
+  </section>
+
+  <!-- METRICS -->
+  <section id="metrics">
+    <h2>Benchmark Metrics Explained</h2>
+
+    <h3>TTFT — Time To First Token</h3>
+    <p>Wall-clock milliseconds from when the HTTP request is sent to when the first non-empty token chunk arrives. This is the perceived "thinking time" — what the user experiences before seeing any output.</p>
+    <p>Measured with <code>time.perf_counter()</code> (sub-millisecond resolution, monotonic clock).</p>
+    <div class="decision">
+      <strong>Why wall-clock, not Ollama's built-in timing?</strong>
+      Ollama's <code>eval_duration</code> measures GPU compute time only — it excludes HTTP request serialisation, CUDA kernel warm-up, and token decode overhead. Wall-clock TTFT is what the user actually experiences, so it's the honest metric for a user-facing tool.
+    </div>
+
+    <h3>TPS — Tokens Per Second</h3>
+    <p><code>eval_tokens / (total_wall_seconds)</code>. Higher is better. On a GTX 1660 Ti with q4_K_M models, expect 18–50 TPS depending on model size.</p>
+
+    <h3>Why N runs instead of 1?</h3>
+    <div class="metric-row">
+      <div class="metric-pill"><span class="val">Run 1</span><span class="lbl">Cold (GPU cache miss)</span></div>
+      <div class="metric-pill"><span class="val">Run 2</span><span class="lbl">Warm (typical)</span></div>
+      <div class="metric-pill"><span class="val">Run 3</span><span class="lbl">Thermal throttle?</span></div>
+    </div>
+    <p>The median of 3 runs filters the cold-start outlier without requiring many runs. Median is preferred over mean because it's not affected by single extreme values.</p>
+  </section>
+
+  <!-- MODELS -->
+  <section id="models">
+    <h2>Model Comparison Study</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Model</th><th>VRAM (q4_K_M)</th><th>Typical TPS</th><th>Mean TTFT</th><th>Best Use Case</th></tr></thead>
+        <tbody>
+          <tr><td>llama3:8b-instruct</td><td>~4.7 GB</td><td>18–25</td><td>800–1200 ms</td><td>Complex reasoning, long output</td></tr>
+          <tr><td>mistral:7b-instruct</td><td>~4.1 GB</td><td>22–30</td><td>600–900 ms</td><td>Balanced: speed + quality</td></tr>
+          <tr><td>phi3:mini</td><td>~2.3 GB</td><td>35–50</td><td>300–500 ms</td><td>Fast interactive chat, simple tasks</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><strong>Key insight:</strong> phi3:mini is 2× faster than llama3:8b with half the VRAM footprint, but produces shallower reasoning on complex multi-step tasks. For an interactive assistant, phi3:mini's ~400 ms TTFT feels instantaneous. For document summarisation, llama3:8b's quality justifies the wait.</p>
+  </section>
+
+  <!-- HOW TO RUN -->
+  <section id="run">
+    <h2>How to Run</h2>
+
+    <h3>1. Install Ollama and Pull Models</h3>
+    <pre><code># Install Ollama (Linux)
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Pull models (each is 4+ GB — do one at a time)
+ollama pull llama3:8b-instruct-q4_K_M
+ollama pull mistral:7b-instruct-q4_K_M
+ollama pull phi3:mini
+
+# Start the Ollama daemon
+ollama serve</code></pre>
+
+    <h3>2. Start the Backend</h3>
+    <pre><code>cd ollamalens/backend
+
+# Create isolated Python environment
+python -m venv .venv
+source .venv/bin/activate        # Linux/Mac
+# .venv\Scripts\activate         # Windows
+
+pip install -r requirements.txt
+
+# Copy environment config
+cp ../.env.example .env
+
+# Start the API server
+uvicorn backend.main:app --reload --port 8000</code></pre>
+
+    <h3>3. Test the API</h3>
+    <pre><code># Health check
+curl http://localhost:8000/health
+
+# Non-streaming chat
+curl -X POST http://localhost:8000/chat/generate \
+  -H "Content-Type: application/json" \
+  -d '{"model":"phi3:mini","prompt":"What is recursion?","stream":false}'
+
+# Run benchmark (3 iterations)
+curl -X POST http://localhost:8000/benchmark/run \
+  -H "Content-Type: application/json" \
+  -d '{"model":"phi3:mini","runs":3}'
+
+# Open interactive API docs
+open http://localhost:8000/docs</code></pre>
+  </section>
+
+  <!-- RECRUITER -->
+  <section id="recruiter">
+    <h2>Recruiter Guide</h2>
+    <p>Use this section to prepare for technical conversations about the project.</p>
+
+    <h3>Elevator Pitch</h3>
+    <div class="decision" style="border-color: var(--accent3); background: #1a1200;">
+      <strong style="color: var(--accent3);">30-Second Version</strong>
+      "OllamaLens is a local AI benchmarking platform I built to run and compare small language models on my own GPU — no cloud, no API cost. The backend is FastAPI because it's fully async, which is essential for real-time token streaming via Server-Sent Events. I used Pydantic for boundary validation, Tenacity for retry logic, and SQLite for zero-infrastructure persistence. The structured output pipeline forces the LLM to return valid JSON and retries with corrective prompts if validation fails — the same reliability pattern you'd use in production."
+    </div>
+
+    <h3>Common Interview Questions</h3>
+
+    <div class="qa-item">
+      <div class="qa-q">What is Pydantic and why did you use it?</div>
+      <div class="qa-a">Pydantic is a data validation library. I use it to validate every API request and response at the HTTP boundary, so invalid data never reaches the business logic. It turns runtime AttributeErrors into clear HTTP 422 responses with field-level error messages. In this project, it also serves double duty as the SQLite schema definition through SQLModel.</div>
+    </div>
+
+    <div class="qa-item">
+      <div class="qa-q">What is SSE? Why not WebSockets?</div>
+      <div class="qa-a">Server-Sent Events is a one-way HTTP channel from server to browser. Token streaming is strictly one-directional, so SSE is simpler and more appropriate than WebSockets. SSE works over plain HTTP with no protocol upgrade, browsers auto-reconnect on drops, and no extra library is needed on either end.</div>
+    </div>
+
+    <div class="qa-item">
+      <div class="qa-q">What is TTFT and why does it matter?</div>
+      <div class="qa-a">Time To First Token — how long until the user sees the first word of the response. Even if overall generation is slow, a low TTFT makes the interface feel responsive. It's a key UX metric for LLM products — OpenAI's API dashboard reports it for exactly this reason.</div>
+    </div>
+
+    <div class="qa-item">
+      <div class="qa-q">Why SQLite instead of PostgreSQL?</div>
+      <div class="qa-a">Zero infrastructure cost and zero setup. For a local tool with hundreds of rows, SQLite is faster to set up and operationally simpler. If this needed to scale to multiple users or concurrent writes, swapping to PostgreSQL is a one-line connection string change — SQLAlchemy abstracts the difference.</div>
+    </div>
+
+    <div class="qa-item">
+      <div class="qa-q">What is q4_K_M quantization?</div>
+      <div class="qa-a">Quantization reduces model weight precision from 16-bit floats to 4-bit integers, cutting VRAM usage by 4×. The K-quant variant uses non-uniform quantization that preserves the accuracy of "important" weights better than simple Q4. On a 6 GB GPU, it's the difference between running a 7B model at all or not — q4_K_M is the established sweet spot between speed, quality, and memory.</div>
+    </div>
+
+    <div class="qa-item">
+      <div class="qa-q">Why did you choose this set of models to compare?</div>
+      <div class="qa-a">Each model represents a different point in the speed/quality trade-off space: Llama 3 8B is Meta's strongest small model for instruction following; Mistral 7B is the open-source performance baseline many benchmarks reference; Phi-3 Mini is Microsoft's efficiency-focused model that punches above its weight for its size. Together they cover the realistic decision space for a developer choosing a local model.</div>
+    </div>
+
+    <div class="qa-item">
+      <div class="qa-q">How would you scale this to production?</div>
+      <div class="qa-a">Several changes: swap SQLite for PostgreSQL (connection string only), add authentication (FastAPI supports OAuth2 natively), containerise with Docker for reproducible deployment, add a Redis queue for benchmark jobs so long-running tasks don't block HTTP, and replace the Ollama process with a vLLM or TGI server for higher throughput. The FastAPI + Pydantic + async foundation handles all of these without architectural changes.</div>
+    </div>
+  </section>
+
+</main>
+
+</body>
+</html>

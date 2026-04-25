@@ -1,0 +1,125 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Design tokens ─────────────────────────────────────────────────────── */
+:root {
+  --bg:          #080a0f;
+  --surface:     #0d1117;
+  --surface2:    #161b22;
+  --border:      #21262d;
+  --border2:     #30363d;
+  --accent:      #39d353;   /* terminal green */
+  --accent-dim:  #1a4d2a;
+  --blue:        #58a6ff;
+  --amber:       #e3b341;
+  --red:         #f85149;
+  --purple:      #bc8cff;
+  --text:        #e6edf3;
+  --muted:       #7d8590;
+  --muted2:      #484f58;
+  --font-mono:   'DM Mono', monospace;
+  --font-sans:   'Outfit', sans-serif;
+  --font-display:'Syne', sans-serif;
+  --radius:      6px;
+  --radius-lg:   12px;
+}
+
+/* ── Base ──────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scanline overlay for terminal feel */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.03) 2px,
+    rgba(0,0,0,0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ── Typography ────────────────────────────────────────────────────────── */
+h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 700; margin: 0; }
+code, pre, .mono { font-family: var(--font-mono); }
+
+/* ── Scrollbar ─────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted2); }
+
+/* ── Token cursor blink ─────────────────────────────────────────────────── */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+.cursor-blink::after {
+  content: '▋';
+  color: var(--accent);
+  animation: blink 1s step-end infinite;
+  margin-left: 2px;
+}
+
+/* ── Glow effects ───────────────────────────────────────────────────────── */
+.glow-green { box-shadow: 0 0 20px rgba(57,211,83,0.15); }
+.glow-blue  { box-shadow: 0 0 20px rgba(88,166,255,0.15); }
+
+/* ── Pulse dot ──────────────────────────────────────────────────────────── */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.8); }
+}
+.pulse { animation: pulse-dot 2s ease-in-out infinite; }
+
+/* ── Fade-in-up ─────────────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.35s ease forwards; }
+
+/* ── Spin ───────────────────────────────────────────────────────────────── */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 0.8s linear infinite; }
+
+/* ── Progress bar shimmer ───────────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+.shimmer {
+  background: linear-gradient(90deg,
+    var(--accent-dim) 25%,
+    var(--accent) 50%,
+    var(--accent-dim) 75%
+  );
+  background-size: 200% auto;
+  animation: shimmer 1.5s linear infinite;
+}
+
+/* ── Typing dots ────────────────────────────────────────────────────────── */
+@keyframes typing-dot {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.3; }
+  40%            { transform: translateY(-4px); opacity: 1; }
+}
+.typing-dot:nth-child(1) { animation: typing-dot 1.2s ease infinite 0s; }
+.typing-dot:nth-child(2) { animation: typing-dot 1.2s ease infinite 0.2s; }
+.typing-dot:nth-child(3) { animation: typing-dot 1.2s ease infinite 0.4s; }
