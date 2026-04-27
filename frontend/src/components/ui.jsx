@@ -1,240 +1,305 @@
-import { useState, useEffect } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { NavLink } from 'react-router-dom'
 import {
   MessageSquare, Gauge, GitCompare, FileText,
-  Activity, ChevronRight, Cpu, Zap
+  Zap, ChevronLeft, ChevronRight,
+  Activity, Clock, Cpu, TrendingUp
 } from 'lucide-react'
 import { getHealth } from '../api/client'
+import { useApp } from '../context/AppContext'
 
+/* ── Nav ─────────────────────────────────────────────────── */
 const NAV = [
-  { to: '/',          icon: MessageSquare, label: 'Chat',       sub: 'Stream tokens live'       },
-  { to: '/benchmark', icon: Gauge,         label: 'Benchmark',  sub: 'Measure TTFT & TPS'       },
-  { to: '/compare',   icon: GitCompare,    label: 'Compare',    sub: 'Side-by-side models'      },
-  { to: '/report',    icon: FileText,      label: 'Report',     sub: 'Technical analysis'       },
+  { to: '/',          icon: MessageSquare, label: 'Chat',      sub: 'Stream tokens'  },
+  { to: '/benchmark', icon: Gauge,         label: 'Benchmark', sub: 'TTFT & TPS'     },
+  { to: '/compare',   icon: GitCompare,    label: 'Compare',   sub: 'Side-by-side'   },
+  { to: '/report',    icon: FileText,      label: 'Report',    sub: 'Analysis'       },
 ]
 
-/* ── Sidebar ─────────────────────────────────────────────────────────── */
+export const MODELS = [
+  { id: 'phi3:mini',                   label: 'Phi-3 Mini',  vram: '2.3 GB', tps: '~63', color: '#4f46e5', lt: '#eef2ff', border: 'rgba(79,70,229,.25)'  },
+  { id: 'mistral:7b-instruct-q4_K_M', label: 'Mistral 7B',  vram: '4.1 GB', tps: '~28', color: '#7c3aed', lt: '#f5f3ff', border: 'rgba(124,58,237,.25)' },
+  { id: 'llama3:8b-instruct-q4_K_M',  label: 'Llama 3 8B',  vram: '4.7 GB', tps: '~22', color: '#059669', lt: '#ecfdf5', border: 'rgba(5,150,105,.25)'  },
+]
+
+/* ═══════════════════════════════════════════
+   SIDEBAR
+═══════════════════════════════════════════ */
 export function Sidebar() {
-  const [health, setHealth] = useState(null)
+  const [online, setOnline] = useState(false)
+  const { sidebarCollapsed, setSidebarCollapsed, chatStreaming, benchLoading, compareLoading } = useApp()
+  const w = sidebarCollapsed ? 60 : 220
 
   useEffect(() => {
-    getHealth().then(setHealth).catch(() => setHealth({ status: 'error' }))
-    const id = setInterval(() =>
-      getHealth().then(setHealth).catch(() => setHealth({ status: 'error' })),
-      10000
-    )
+    const check = () => getHealth().then(() => setOnline(true)).catch(() => setOnline(false))
+    check()
+    const id = setInterval(check, 8000)
     return () => clearInterval(id)
   }, [])
 
-  const online = health?.status === 'ok'
+  const busy = chatStreaming || benchLoading || compareLoading
+  const busyLabel = chatStreaming ? 'Streaming…' : benchLoading ? 'Benchmarking…' : 'Comparing…'
 
   return (
     <aside style={{
-      width: 220, minHeight: '100vh', background: 'var(--surface)',
-      borderRight: '1px solid var(--border)', display: 'flex',
-      flexDirection: 'column', flexShrink: 0, position: 'fixed',
-      top: 0, left: 0, bottom: 0, zIndex: 50,
+      width: w, minHeight: '100vh', flexShrink: 0,
+      background: 'var(--s1)',
+      borderRight: '1px solid var(--b1)',
+      display: 'flex', flexDirection: 'column',
+      position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 50,
+      transition: 'width .22s cubic-bezier(.4,0,.2,1)',
+      overflow: 'hidden',
     }}>
+
       {/* Logo */}
-      <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-          <div style={{
-            width: 28, height: 28, borderRadius: 6,
-            background: 'var(--accent-dim)', border: '1px solid var(--accent)',
-            display: 'grid', placeItems: 'center',
-          }}>
-            <Zap size={14} color="var(--accent)" />
+      <div style={{
+        height: 56, padding: sidebarCollapsed ? '0 12px' : '0 16px',
+        borderBottom: '1px solid var(--b1)',
+        display: 'flex', alignItems: 'center',
+        justifyContent: sidebarCollapsed ? 'center' : 'space-between',
+        flexShrink: 0,
+      }}>
+        {!sidebarCollapsed && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <div style={{
+              width: 28, height: 28, borderRadius: 7,
+              background: 'var(--indigo-lt)', border: '1px solid rgba(79,70,229,.25)',
+              display: 'grid', placeItems: 'center', flexShrink: 0,
+            }}>
+              <Zap size={13} color="var(--indigo)" strokeWidth={2.5} />
+            </div>
+            <span style={{ fontFamily: 'var(--ff-body)', fontSize: 15, fontWeight: 700, color: 'var(--t1)', letterSpacing: '-.3px' }}>
+              Ollama<span style={{ color: 'var(--indigo)' }}>Lens</span>
+            </span>
           </div>
-          <span style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>
-            Ollama<span style={{ color: 'var(--accent)' }}>Lens</span>
-          </span>
-        </div>
-        <div style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
-          Local SLM Platform
-        </div>
+        )}
+        {sidebarCollapsed && (
+          <div style={{ width: 28, height: 28, borderRadius: 7, background: 'var(--indigo-lt)', border: '1px solid rgba(79,70,229,.25)', display: 'grid', placeItems: 'center' }}>
+            <Zap size={13} color="var(--indigo)" strokeWidth={2.5} />
+          </div>
+        )}
+        {!sidebarCollapsed && (
+          <button onClick={() => setSidebarCollapsed(true)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t3)', padding: 4, borderRadius: 5, display: 'grid', placeItems: 'center' }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--t1)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--t3)'}>
+            <ChevronLeft size={14} />
+          </button>
+        )}
       </div>
 
       {/* Nav */}
-      <nav style={{ flex: 1, padding: '12px 12px', overflowY: 'auto' }}>
-        <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1.5, textTransform: 'uppercase',
-          color: 'var(--muted)', padding: '8px 8px 6px', marginBottom: 4 }}>
-          Navigation
-        </div>
+      <nav style={{ flex: 1, padding: '10px 8px', overflowY: 'auto', overflowX: 'hidden' }}>
+        {!sidebarCollapsed && (
+          <div className="label" style={{ padding: '4px 8px 8px', display: 'block' }}>Menu</div>
+        )}
         {NAV.map(({ to, icon: Icon, label, sub }) => (
-          <NavLink key={to} to={to} end={to === '/'} style={{ textDecoration: 'none' }}>
+          <NavLink key={to} to={to} end={to === '/'} style={{ textDecoration: 'none', display: 'block', marginBottom: 2 }}>
             {({ isActive }) => (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '9px 10px', borderRadius: 6, marginBottom: 2,
-                background: isActive ? 'var(--accent-dim)' : 'transparent',
-                border: `1px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
-                cursor: 'pointer', transition: 'all 0.15s',
-              }}
-              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--surface2)' }}
-              onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+              <div
+                title={sidebarCollapsed ? label : undefined}
+                style={{
+                  display: 'flex', alignItems: 'center',
+                  gap: 10, padding: sidebarCollapsed ? '10px 0' : '8px 10px',
+                  justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+                  borderRadius: 8, cursor: 'pointer', transition: 'all .13s',
+                  background: isActive ? 'var(--indigo-lt)' : 'transparent',
+                  border: `1px solid ${isActive ? 'rgba(79,70,229,.2)' : 'transparent'}`,
+                }}
+                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--s2)' }}
+                onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
               >
-                <Icon size={15} color={isActive ? 'var(--accent)' : 'var(--muted)'} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600,
-                    color: isActive ? 'var(--accent)' : 'var(--text)' }}>{label}</div>
-                  <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.2 }}>{sub}</div>
-                </div>
-                {isActive && <ChevronRight size={12} color="var(--accent)" />}
+                <Icon size={15} color={isActive ? 'var(--indigo)' : 'var(--t3)'} strokeWidth={isActive ? 2.5 : 2} style={{ flexShrink: 0 }} />
+                {!sidebarCollapsed && (
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: isActive ? 'var(--indigo)' : 'var(--t1)', lineHeight: 1.2 }}>{label}</div>
+                    <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 1 }}>{sub}</div>
+                  </div>
+                )}
               </div>
             )}
           </NavLink>
         ))}
+        {sidebarCollapsed && (
+          <button onClick={() => setSidebarCollapsed(false)}
+            style={{ width: '100%', marginTop: 8, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t3)', padding: '8px 0', display: 'grid', placeItems: 'center', borderRadius: 8 }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--t1)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--t3)'}>
+            <ChevronRight size={14} />
+          </button>
+        )}
       </nav>
 
-      {/* Status */}
-      <div style={{ padding: '16px', borderTop: '1px solid var(--border)' }}>
-        <div style={{ background: 'var(--surface2)', borderRadius: 8,
-          border: '1px solid var(--border)', padding: '10px 12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-            <div style={{
-              width: 7, height: 7, borderRadius: '50%',
-              background: online ? 'var(--accent)' : 'var(--red)',
-              ...(online ? { animation: 'pulse-dot 2s ease-in-out infinite' } : {})
-            }} className={online ? 'pulse' : ''} />
-            <span style={{ fontSize: 11, fontWeight: 600,
-              color: online ? 'var(--accent)' : 'var(--red)' }}>
-              {online ? 'Backend Online' : 'Backend Offline'}
-            </span>
-          </div>
-          <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)', lineHeight: 1.8 }}>
-            <div>GPU: GTX 1660 Ti</div>
-            <div>VRAM: 6 GB</div>
-            <div>Quant: q4_K_M</div>
-          </div>
+      {/* Busy indicator */}
+      {busy && !sidebarCollapsed && (
+        <div style={{ margin: '0 8px 8px', padding: '8px 10px', background: 'var(--indigo-lt)', border: '1px solid rgba(79,70,229,.2)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="spinner" />
+          <span style={{ fontSize: 11, color: 'var(--indigo)', fontFamily: 'var(--ff-mono)' }}>{busyLabel}</span>
         </div>
+      )}
+
+      {/* Status */}
+      <div style={{ padding: sidebarCollapsed ? '12px 0' : '12px', borderTop: '1px solid var(--b1)', flexShrink: 0, display: 'flex', justifyContent: sidebarCollapsed ? 'center' : 'stretch' }}>
+        {sidebarCollapsed
+          ? <div className={`status-dot ${online ? 'online' : 'offline'}`} />
+          : (
+            <div style={{ background: 'var(--s2)', border: '1px solid var(--b1)', borderRadius: 10, padding: '10px 12px', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 }}>
+                <div className={`status-dot ${online ? 'online' : 'offline'}`} />
+                <span style={{ fontSize: 11, fontWeight: 600, color: online ? 'var(--emerald)' : 'var(--rose)' }}>
+                  {online ? 'Backend online' : 'Backend offline'}
+                </span>
+              </div>
+              <div style={{ fontFamily: 'var(--ff-mono)', fontSize: 10, color: 'var(--t3)', lineHeight: 2 }}>
+                <div>GTX 1660 Ti · 6 GB VRAM</div>
+                <div>q4_K_M quantization</div>
+              </div>
+            </div>
+          )
+        }
       </div>
     </aside>
   )
 }
 
-/* ── Page shell ─────────────────────────────────────────────────────────── */
-export function PageShell({ title, subtitle, children, actions }) {
+/* ═══════════════════════════════════════════
+   PAGE SHELL
+═══════════════════════════════════════════ */
+export function PageShell({ title, badge, actions, children }) {
+  const { sidebarCollapsed } = useApp()
+  const ml = sidebarCollapsed ? 60 : 220
+
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      {/* Header */}
-      <div style={{
-        padding: '20px 28px', borderBottom: '1px solid var(--border)',
-        background: 'var(--surface)', display: 'flex',
-        alignItems: 'center', justifyContent: 'space-between',
+    <div style={{ marginLeft: ml, flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', transition: 'margin-left .22s cubic-bezier(.4,0,.2,1)' }}>
+      <header style={{
+        height: 56, padding: '0 24px',
+        borderBottom: '1px solid var(--b1)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         position: 'sticky', top: 0, zIndex: 40,
+        background: 'rgba(248,250,252,.9)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
       }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 800, fontFamily: 'var(--font-display)',
-            color: 'var(--text)', marginBottom: 1 }}>{title}</h1>
-          {subtitle && <p style={{ fontSize: 12, color: 'var(--muted)', margin: 0 }}>{subtitle}</p>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h1 style={{ fontFamily: 'var(--ff-body)', fontSize: 16, fontWeight: 700, color: 'var(--t1)', letterSpacing: '-.3px' }}>
+            {title}
+          </h1>
+          {badge && <span className={`tag tag-${badge.color ?? 'indigo'}`}>{badge.label}</span>}
         </div>
-        {actions && <div style={{ display: 'flex', gap: 8 }}>{actions}</div>}
-      </div>
-      {/* Body */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: 28 }}>
+        {actions && <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>{actions}</div>}
+      </header>
+      <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
         {children}
       </div>
     </div>
   )
 }
 
-/* ── Model selector ─────────────────────────────────────────────────────── */
-const MODELS = [
-  { id: 'phi3:mini',                    label: 'Phi-3 Mini',    vram: '2.3 GB', speed: 'Fast',     color: 'var(--amber)'  },
-  { id: 'mistral:7b-instruct-q4_K_M',  label: 'Mistral 7B',    vram: '4.1 GB', speed: 'Balanced', color: 'var(--blue)'   },
-  { id: 'llama3:8b-instruct-q4_K_M',   label: 'Llama 3 8B',    vram: '4.7 GB', speed: 'Quality',  color: 'var(--purple)' },
-]
-
+/* ═══════════════════════════════════════════
+   MODEL SELECTOR
+═══════════════════════════════════════════ */
 export function ModelSelector({ value, onChange, disabled }) {
   return (
-    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-      {MODELS.map(m => (
-        <button key={m.id} onClick={() => onChange(m.id)} disabled={disabled}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '8px 14px', borderRadius: 6, cursor: disabled ? 'not-allowed' : 'pointer',
-            border: `1px solid ${value === m.id ? m.color : 'var(--border)'}`,
-            background: value === m.id ? `${m.color}15` : 'var(--surface2)',
-            opacity: disabled ? 0.5 : 1, transition: 'all 0.15s',
-          }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: m.color }} />
-          <div style={{ textAlign: 'left' }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: value === m.id ? m.color : 'var(--text)' }}>
-              {m.label}
+    <div style={{ display: 'flex', gap: 8 }}>
+      {MODELS.map(m => {
+        const active = value === m.id
+        return (
+          <button key={m.id} onClick={() => onChange(m.id)} disabled={disabled}
+            style={{
+              flex: 1, display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 14px', borderRadius: 10,
+              cursor: disabled ? 'not-allowed' : 'pointer',
+              background: active ? m.lt : 'var(--s2)',
+              border: `1px solid ${active ? m.border : 'var(--b1)'}`,
+              transition: 'all .15s', outline: 'none',
+              opacity: disabled ? .5 : 1,
+              boxShadow: active ? `0 1px 4px ${m.color}20` : 'none',
+            }}
+            onMouseEnter={e => { if (!disabled && !active) { e.currentTarget.style.background = 'var(--s3)'; e.currentTarget.style.borderColor = 'var(--b2)' } }}
+            onMouseLeave={e => { if (!disabled && !active) { e.currentTarget.style.background = 'var(--s2)'; e.currentTarget.style.borderColor = 'var(--b1)' } }}
+          >
+            <div style={{
+              width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+              background: active ? m.color : 'var(--t3)',
+              transition: 'all .15s',
+            }} />
+            <div style={{ textAlign: 'left', flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: active ? m.color : 'var(--t1)', marginBottom: 1 }}>{m.label}</div>
+              <div style={{ fontSize: 10, color: 'var(--t3)', fontFamily: 'var(--ff-mono)' }}>{m.vram} · {m.tps} tok/s</div>
             </div>
-            <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
-              {m.vram} · {m.speed}
-            </div>
-          </div>
-        </button>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════
+   STAT CARD
+═══════════════════════════════════════════ */
+export function StatCard({ label, value, unit, color = 'var(--indigo)', icon: Icon }) {
+  return (
+    <div className="card" style={{ padding: '16px 18px', borderLeft: `2px solid ${color}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <span className="label">{label}</span>
+        {Icon && <Icon size={13} color={color} strokeWidth={2} />}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+        <span style={{ fontFamily: 'var(--ff-mono)', fontSize: 24, fontWeight: 600, color, letterSpacing: '-1px', lineHeight: 1 }}>{value}</span>
+        {unit && <span style={{ fontSize: 11, color: 'var(--t3)', fontFamily: 'var(--ff-mono)' }}>{unit}</span>}
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════
+   EMPTY STATE
+═══════════════════════════════════════════ */
+export function EmptyState({ icon: Icon, title, sub }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', gap: 14 }}>
+      <div style={{ width: 52, height: 52, borderRadius: 14, background: 'var(--s2)', border: '1px solid var(--b1)', display: 'grid', placeItems: 'center' }}>
+        <Icon size={22} color="var(--t3)" strokeWidth={1.5} />
+      </div>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--t2)', marginBottom: 6 }}>{title}</div>
+        {sub && <div style={{ fontSize: 13, color: 'var(--t3)', maxWidth: 300, lineHeight: 1.6 }}>{sub}</div>}
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════
+   INFO BANNER
+═══════════════════════════════════════════ */
+export function InfoBanner({ type = 'info', children }) {
+  const cfg = {
+    info:    { bg: 'var(--sky-lt)',     border: 'rgba(2,132,199,.2)',   color: 'var(--sky)' },
+    success: { bg: 'var(--emerald-lt)', border: 'rgba(5,150,105,.2)',   color: 'var(--emerald)' },
+    warning: { bg: 'var(--amber-lt)',   border: 'rgba(217,119,6,.2)',   color: 'var(--amber)' },
+    error:   { bg: 'var(--rose-lt)',    border: 'rgba(225,29,72,.2)',   color: 'var(--rose)' },
+  }[type]
+  return (
+    <div style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, borderRadius: 8, padding: '10px 14px', fontSize: 13, color: cfg.color, lineHeight: 1.6 }}>
+      {children}
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════
+   RECHARTS TOOLTIP
+═══════════════════════════════════════════ */
+export function ChartTooltip({ active, payload, label, suffix = '' }) {
+  if (!active || !payload?.length) return null
+  return (
+    <div style={{ background: 'var(--s1)', border: '1px solid var(--b2)', borderRadius: 8, padding: '10px 14px', fontFamily: 'var(--ff-mono)', fontSize: 12, boxShadow: '0 4px 16px rgba(0,0,0,.1)' }}>
+      <div style={{ color: 'var(--t3)', marginBottom: 6, fontSize: 11 }}>Run {label}</div>
+      {payload.map((p, i) => (
+        <div key={i} style={{ color: p.color || 'var(--t1)', display: 'flex', gap: 12, justifyContent: 'space-between' }}>
+          <span style={{ color: 'var(--t2)' }}>{p.name}</span>
+          <span style={{ fontWeight: 600 }}>{typeof p.value === 'number' ? p.value.toFixed(2) : p.value}{suffix}</span>
+        </div>
       ))}
     </div>
   )
 }
-
-/* ── Stat card ──────────────────────────────────────────────────────────── */
-export function StatCard({ label, value, unit, color = 'var(--accent)', icon: Icon }) {
-  return (
-    <div style={{
-      background: 'var(--surface)', border: '1px solid var(--border)',
-      borderRadius: 8, padding: '16px 20px',
-      borderLeft: `3px solid ${color}`,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)',
-          textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</span>
-        {Icon && <Icon size={14} color={color} />}
-      </div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-        <span style={{ fontSize: 26, fontWeight: 800, fontFamily: 'var(--font-display)', color }}>{value}</span>
-        {unit && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{unit}</span>}
-      </div>
-    </div>
-  )
-}
-
-/* ── Button ─────────────────────────────────────────────────────────────── */
-export function Btn({ children, onClick, disabled, variant = 'primary', small, loading }) {
-  const styles = {
-    primary: { background: 'var(--accent)', color: '#000', border: '1px solid var(--accent)' },
-    ghost:   { background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)' },
-    danger:  { background: 'transparent', color: 'var(--red)', border: '1px solid var(--red)' },
-  }
-  return (
-    <button onClick={onClick} disabled={disabled || loading}
-      style={{
-        ...styles[variant],
-        padding: small ? '5px 12px' : '8px 18px',
-        borderRadius: 6, cursor: (disabled || loading) ? 'not-allowed' : 'pointer',
-        fontSize: small ? 12 : 13, fontWeight: 600, fontFamily: 'var(--font-sans)',
-        display: 'inline-flex', alignItems: 'center', gap: 6,
-        opacity: (disabled || loading) ? 0.6 : 1, transition: 'opacity 0.15s',
-      }}>
-      {loading && <div className="spin" style={{ width: 12, height: 12, border: '2px solid currentColor',
-        borderTopColor: 'transparent', borderRadius: '50%' }} />}
-      {children}
-    </button>
-  )
-}
-
-/* ── Textarea ───────────────────────────────────────────────────────────── */
-export function TextArea({ value, onChange, placeholder, rows = 3, disabled, onKeyDown }) {
-  return (
-    <textarea
-      value={value} onChange={e => onChange(e.target.value)}
-      placeholder={placeholder} rows={rows} disabled={disabled}
-      onKeyDown={onKeyDown}
-      style={{
-        width: '100%', background: 'var(--surface2)',
-        border: '1px solid var(--border)', borderRadius: 6,
-        padding: '10px 14px', color: 'var(--text)', resize: 'vertical',
-        fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.6,
-        outline: 'none', transition: 'border-color 0.15s',
-      }}
-      onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-      onBlur={e => e.target.style.borderColor = 'var(--border)'}
-    />
-  )
-}
-
-export { MODELS }

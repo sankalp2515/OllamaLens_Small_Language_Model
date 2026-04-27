@@ -1,55 +1,37 @@
-# OllamaLens Backend Dependencies
+# OllamaLens Backend Dependencies v3
 # Install: pip install -r requirements.txt
 
-# ---------------------------------------------------------------------------
-# Web Framework
-# WHY fastapi[all]?  Includes uvicorn, pydantic, starlette — one install.
-# ---------------------------------------------------------------------------
+# ── Web Framework ──────────────────────────────────────────────────
 fastapi[all]==0.111.0
-uvicorn[standard]==0.29.0          # ASGI server; [standard] adds websocket support
+uvicorn[standard]==0.29.0
 
-# ---------------------------------------------------------------------------
-# HTTP Client
-# WHY httpx and not requests?
-# requests is synchronous. httpx has identical API but supports async/await,
-# streaming, and HTTP/2 — all needed for Ollama communication.
-# ---------------------------------------------------------------------------
+# ── HTTP Client (used for Ollama AND tool API calls) ───────────────
+# httpx handles both the Ollama WebSocket and external API calls
+# (DuckDuckGo, Open-Meteo, Wikipedia) in async context
 httpx==0.27.0
 
-# ---------------------------------------------------------------------------
-# Database
-# WHY sqlmodel + aiosqlite?
-# sqlmodel = Pydantic + SQLAlchemy in one class (no schema duplication)
-# aiosqlite = async wrapper around sqlite3 so DB writes don't block the event loop
-# ---------------------------------------------------------------------------
+# ── Database ───────────────────────────────────────────────────────
 sqlmodel==0.0.19
 aiosqlite==0.20.0
 sqlalchemy[asyncio]==2.0.30
 
-# ---------------------------------------------------------------------------
-# Settings
-# ---------------------------------------------------------------------------
-pydantic-settings==2.2.1          # reads from .env files with type validation
+# ── Settings ───────────────────────────────────────────────────────
+pydantic-settings==2.2.1
 
-# ---------------------------------------------------------------------------
-# Retry logic
-# WHY tenacity over custom retry loops?
-# tenacity handles exponential backoff, jitter, logging, and re-raise in
-# ~4 decorator arguments vs. ~30 lines of manual code.
-# ---------------------------------------------------------------------------
+# ── Retry logic ────────────────────────────────────────────────────
 tenacity==8.3.0
 
-# ---------------------------------------------------------------------------
-# JSON Schema validation
-# WHY jsonschema for runtime validation?
-# Pydantic models are compile-time. jsonschema.validate() works with
-# arbitrary user-supplied schemas at runtime — exactly what /chat/structured needs.
-# ---------------------------------------------------------------------------
+# ── JSON Schema validation (for /chat/structured) ──────────────────
 jsonschema==4.22.0
 
-# ---------------------------------------------------------------------------
-# Dev / Testing
-# ---------------------------------------------------------------------------
+# ── Dev / Testing ──────────────────────────────────────────────────
 pytest==8.2.0
 pytest-asyncio==0.23.6
-httpx                              # already listed; also used for TestClient
+
+# ── No new packages needed for tools! ─────────────────────────────
+# All tool APIs used are free REST APIs called via httpx (already installed):
+#   DuckDuckGo Instant Answer API — no key
+#   Open-Meteo weather API        — no key
+#   Wikipedia REST API            — no key
+#   Calculator — Python stdlib math module
+#   Date/Time  — Python stdlib datetime

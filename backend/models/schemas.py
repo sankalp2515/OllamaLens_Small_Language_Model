@@ -46,19 +46,57 @@ class SupportedModel(str, Enum):
 # Chat models
 # ---------------------------------------------------------------------------
 
+class ChatMessage(BaseModel):
+    """
+    A single turn in a conversation.
+
+    WHY A SEPARATE CLASS FOR HISTORY?
+    Rather than passing a raw string, we pass structured message objects.
+    This lets the backend reconstruct the conversation in a standard
+    [User]: / [Assistant]: format that all three models understand.
+    It also makes the API self-documenting — callers know exactly what
+    shape the history must be in.
+
+    role must be "user" or "assistant" — matching the standard chat roles
+    used by every major LLM API (OpenAI, Anthropic, Ollama).
+    """
+    role: str = Field(..., pattern="^(user|assistant)$")
+    content: str = Field(..., min_length=1)
+
+
 class ChatRequest(BaseModel):
     """
     POST /chat/generate
 
     WHY not just accept a plain string prompt?
-    Structured input lets us version the schema.  Adding `system` and
-    `options` in v1 means the frontend never needs a breaking change.
+    Structured input lets us version the schema.  Adding `system`,
+    `history`, and `options` in v1 means the frontend never needs a
+    breaking change when we add memory / multi-turn support.
+
+    WHY history IN THE REQUEST (not server-side session)?
+    LLMs are stateless — Ollama has no concept of a session ID.
+    The client is the source of truth for conversation history.
+    This is the same architecture used by OpenAI's Chat Completions API:
+    the caller sends the full message history every time.
+
+    MEMORY APPROACH — SHORT-TERM CONTEXT WINDOW:
+    We send the last N turns of conversation as a formatted string
+    prepended to the current prompt.  The model reads this and
+    "remembers" what was said.  This is not true long-term memory
+    (that would require a vector DB) but covers 95% of chat use cases.
     """
     model: SupportedModel = SupportedModel.LLAMA3
     prompt: str = Field(..., min_length=1, max_length=8000)
+    history: list[ChatMessage] = Field(
+        default=[],
+        description=(
+            "Previous turns in the conversation. Send the full list each time. "
+            "The backend will format this into a context string for the model."
+        ),
+    )
     system: Optional[str] = Field(
         default=None,
-        description="System prompt — injected before the user prompt",
+        description="System prompt — injected before the conversation history",
     )
     stream: bool = Field(
         default=True,

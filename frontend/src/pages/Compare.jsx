@@ -1,206 +1,184 @@
-import { useState } from 'react'
-import { GitCompare, Trophy, Zap, Clock } from 'lucide-react'
-import { RadarChart, PolarGrid, PolarAngleAxis, Radar,
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
-  CartesianGrid, Tooltip, Cell } from 'recharts'
+import { useCallback } from 'react'
+import { GitCompare, Trophy } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { compareModels } from '../api/client'
-import { PageShell, Btn, TextArea } from '../components/ui'
+import { useApp } from '../context/AppContext'
+import { PageShell, EmptyState, InfoBanner, ChartTooltip, MODELS } from '../components/ui'
 
-const MODEL_COLORS = {
-  'phi3:mini':                   '#e3b341',
-  'mistral:7b-instruct-q4_K_M': '#58a6ff',
-  'llama3:8b-instruct-q4_K_M':  '#bc8cff',
-}
-const MODEL_SHORT = {
-  'phi3:mini':                   'Phi-3 Mini',
-  'mistral:7b-instruct-q4_K_M': 'Mistral 7B',
-  'llama3:8b-instruct-q4_K_M':  'Llama 3 8B',
-}
-
-const Pill = ({ label, value, color }) => (
-  <div style={{ textAlign: 'center' }}>
-    <div style={{ fontSize: 20, fontWeight: 800, fontFamily: 'var(--font-display)', color }}>{value}</div>
-    <div style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</div>
-  </div>
-)
+const META = Object.fromEntries(MODELS.map(m => [m.id, m]))
 
 export default function ComparePage() {
-  const [prompt, setPrompt]     = useState('Explain quantum entanglement in simple terms.')
-  const [runsEach, setRunsEach] = useState(2)
-  const [loading, setLoading]   = useState(false)
-  const [result,  setResult]    = useState(null)
-  const [error,   setError]     = useState(null)
+  const {
+    compareResult, setCompareResult,
+    compareLoading, setCompareLoading,
+    comparePrompt, setComparePrompt,
+    compareRuns, setCompareRuns,
+  } = useApp()
 
-  const go = async () => {
-    if (!prompt.trim()) return
-    setLoading(true); setError(null); setResult(null)
+  const go = useCallback(async () => {
+    if (!comparePrompt.trim()) return
+    setCompareLoading(true)
     try {
-      const res = await compareModels(prompt.trim(), null, runsEach)
-      setResult(res)
-    } catch (e) { setError(e.message) }
-    finally { setLoading(false) }
-  }
+      const res = await compareModels(comparePrompt.trim(), null, compareRuns)
+      setCompareResult(res)
+    } catch (e) {
+      setCompareResult({ error: e.message })
+    } finally {
+      setCompareLoading(false)
+    }
+  }, [comparePrompt, compareRuns])
 
-  // Build chart data from results
-  const barData = result?.results?.map(r => ({
-    name: MODEL_SHORT[r.model] ?? r.model,
+  const tpsData = compareResult?.results?.map(r => ({
+    name: META[r.model]?.label ?? r.model,
     TPS:  r.stats.median_tps,
     TTFT: r.stats.median_ttft_ms,
-    VRAM: r.vram_estimate_gb,
-    fill: MODEL_COLORS[r.model] ?? '#fff',
+    fill: META[r.model]?.color ?? '#fff',
   })) ?? []
-
-  const maxTps = Math.max(...barData.map(d => d.TPS), 1)
 
   return (
     <PageShell
-      title="Model Comparison"
-      subtitle="Same prompt → all three models → ranked by performance"
+      title="Compare"
+      badge={compareResult?.highest_tps_model ? { label: `Winner: ${META[compareResult.highest_tps_model]?.label}`, color: 'emerald' } : undefined}
     >
-      {/* Input */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)',
-        borderRadius: 10, padding: 20, marginBottom: 24 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 16, marginBottom: 16 }}>
+      {/* Config */}
+      <div className="card" style={{ padding: 20, marginBottom: 20 }}>
+        <div className="label" style={{ marginBottom: 14, display: 'block' }}>Comparison setup</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px', gap: 14, marginBottom: 16 }}>
           <div>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>Prompt (sent to all models)</div>
-            <TextArea value={prompt} onChange={setPrompt} rows={2} disabled={loading} />
+            <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 6 }}>Prompt (sent to all 3 models)</div>
+            <textarea className="inp" rows={2} value={comparePrompt} onChange={e => setComparePrompt(e.target.value)} disabled={compareLoading} />
           </div>
           <div>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>Runs each</div>
-            <input type="number" min={1} max={5} value={runsEach}
-              onChange={e => setRunsEach(+e.target.value)} disabled={loading}
-              style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border)',
-                borderRadius: 6, padding: '8px 12px', color: 'var(--text)',
-                fontSize: 20, fontFamily: 'var(--font-display)', fontWeight: 800,
-                textAlign: 'center', outline: 'none' }} />
+            <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 8 }}>Runs per model</div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              {[1, 2, 3].map(n => (
+                <button key={n} onClick={() => setCompareRuns(n)} disabled={compareLoading}
+                  style={{
+                    flex: 1, padding: '10px 0', borderRadius: 8, cursor: 'pointer',
+                    border: `1px solid ${compareRuns === n ? 'rgba(34,211,238,0.5)' : 'var(--b1)'}`,
+                    background: compareRuns === n ? 'var(--cyan-dim)' : 'var(--s2)',
+                    color: compareRuns === n ? 'var(--cyan)' : 'var(--t3)',
+                    fontSize: 16, fontFamily: 'var(--ff-mono)', fontWeight: 700, transition: 'all 0.13s',
+                  }}>
+                  {n}
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--t3)', fontFamily: 'var(--ff-mono)' }}>
+              ≈ {compareRuns * 3} total GPU runs
+            </div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Btn onClick={go} loading={loading} disabled={loading || !prompt.trim()}>
-            <GitCompare size={14} />
-            {loading ? 'Running across all models…' : 'Compare All Models'}
-          </Btn>
-          <div style={{ fontSize: 11, color: 'var(--muted)' }}>
-            ~{runsEach * 3} total runs · models run sequentially on single GPU
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <button className="btn btn-primary" onClick={go} disabled={compareLoading || !comparePrompt.trim()}>
+            {compareLoading
+              ? <><div className="spinner" style={{ borderTopColor: '#000', borderColor: 'rgba(0,0,0,0.15)' }} /> Comparing models…</>
+              : <><GitCompare size={13} /> Compare All Models</>
+            }
+          </button>
+          {compareLoading && (
+            <span style={{ fontSize: 12, color: 'var(--t3)', fontFamily: 'var(--ff-mono)' }}>
+              Models run sequentially on single GPU
+            </span>
+          )}
         </div>
       </div>
 
-      {error && (
-        <div style={{ background: '#1a0a0a', border: '1px solid var(--red)',
-          borderRadius: 8, padding: '12px 16px', color: 'var(--red)',
-          fontFamily: 'var(--font-mono)', fontSize: 12, marginBottom: 24 }}>
-          ✕ {error}
-        </div>
-      )}
+      {compareResult?.error && <InfoBanner type="error" style={{ marginBottom: 16 }}>✕ {compareResult.error}</InfoBanner>}
 
-      {result && (
-        <div className="fade-up">
-          {/* Winner banner */}
-          <div style={{ background: 'linear-gradient(135deg, #0d2218, #0d1a0d)',
-            border: '1px solid var(--accent)', borderRadius: 10,
-            padding: '16px 20px', marginBottom: 24,
-            display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Trophy size={20} color="var(--accent)" />
+      {compareResult && !compareResult.error && (
+        <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          {/* Winner */}
+          <div className="anim-fade-up" style={{
+            background: 'var(--emerald-dim)', border: '1px solid rgba(16,185,129,.25)',
+            borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14,
+          }}>
+            <Trophy size={20} color="var(--emerald)" />
             <div>
-              <div style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 600,
-                textTransform: 'uppercase', letterSpacing: 0.5 }}>Fastest Model</div>
-              <div style={{ fontSize: 18, fontWeight: 800, fontFamily: 'var(--font-display)' }}>
-                {MODEL_SHORT[result.highest_tps_model] ?? result.highest_tps_model}
-                <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 400,
-                  marginLeft: 8, fontFamily: 'var(--font-sans)' }}>
-                  {result.results[0]?.stats.median_tps} tok/s median
+              <div className="label" style={{ color: 'var(--emerald)', marginBottom: 3, display: 'block' }}>Fastest</div>
+              <div style={{ fontFamily: 'var(--ff-display)', fontSize: 18, fontWeight: 800 }}>
+                {META[compareResult.highest_tps_model]?.label}
+                <span style={{ fontSize: 13, color: 'var(--t3)', fontWeight: 400, marginLeft: 10, fontFamily: 'var(--ff-body)' }}>
+                  {compareResult.results[0]?.stats.median_tps} tok/s median
                 </span>
               </div>
             </div>
           </div>
 
-          {/* TPS bar chart */}
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)',
-            borderRadius: 10, padding: 20, marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-display)',
-              marginBottom: 16 }}>Median Tokens Per Second</div>
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={barData} layout="vertical" barSize={28}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
-                <XAxis type="number" tick={{ fill: 'var(--muted)', fontSize: 11 }}
-                  axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" width={90}
-                  tick={{ fill: 'var(--text)', fontSize: 12 }} axisLine={false} tickLine={false} />
-                <Tooltip formatter={(v) => [`${v} tok/s`, 'TPS']}
-                  contentStyle={{ background: 'var(--surface2)', border: '1px solid var(--border)',
-                    borderRadius: 6, fontFamily: 'var(--font-mono)', fontSize: 12 }} />
-                <Bar dataKey="TPS" radius={[0, 4, 4, 0]}>
-                  {barData.map((d, i) => <Cell key={i} fill={d.fill} opacity={0.85} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {/* Charts */}
+          <div className="anim-fade-up" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div className="card" style={{ padding: '18px 20px' }}>
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 14 }}>Median TPS</div>
+              <ResponsiveContainer width="100%" height={150}>
+                <BarChart data={tpsData} layout="vertical" barSize={20}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" tick={{ fill: 'var(--t3)', fontSize: 11, fontFamily: 'var(--ff-mono)' }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="name" width={80} tick={{ fill: 'var(--t2)', fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <Tooltip formatter={v => [`${v} tok/s`, 'TPS']} contentStyle={{ background: 'var(--s3)', border: '1px solid var(--b2)', borderRadius: 8, fontFamily: 'var(--ff-mono)', fontSize: 12 }} />
+                  <Bar dataKey="TPS" radius={[0, 4, 4, 0]}>
+                    {tpsData.map((d, i) => <Cell key={i} fill={d.fill} opacity={0.85} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
 
-          {/* VRAM bar */}
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)',
-            borderRadius: 10, padding: 20, marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-display)',
-              marginBottom: 16 }}>VRAM Usage (GB) — q4_K_M</div>
-            <ResponsiveContainer width="100%" height={140}>
-              <BarChart data={barData} layout="vertical" barSize={22}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
-                <XAxis type="number" domain={[0, 6]} tick={{ fill: 'var(--muted)', fontSize: 11 }}
-                  axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" width={90}
-                  tick={{ fill: 'var(--text)', fontSize: 12 }} axisLine={false} tickLine={false} />
-                <Tooltip formatter={(v) => [`${v} GB`, 'VRAM']}
-                  contentStyle={{ background: 'var(--surface2)', border: '1px solid var(--border)',
-                    borderRadius: 6, fontFamily: 'var(--font-mono)', fontSize: 12 }} />
-                <Bar dataKey="VRAM" radius={[0, 4, 4, 0]}>
-                  {barData.map((d, i) => <Cell key={i} fill={d.fill} opacity={0.5} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="card" style={{ padding: '18px 20px' }}>
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 14 }}>Median TTFT (ms)</div>
+              <ResponsiveContainer width="100%" height={150}>
+                <BarChart data={tpsData} layout="vertical" barSize={20}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" tick={{ fill: 'var(--t3)', fontSize: 11, fontFamily: 'var(--ff-mono)' }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="name" width={80} tick={{ fill: 'var(--t2)', fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <Tooltip formatter={v => [`${v} ms`, 'TTFT']} contentStyle={{ background: 'var(--s3)', border: '1px solid var(--b2)', borderRadius: 8, fontFamily: 'var(--ff-mono)', fontSize: 12 }} />
+                  <Bar dataKey="TTFT" radius={[0, 4, 4, 0]}>
+                    {tpsData.map((d, i) => <Cell key={i} fill={d.fill} opacity={0.55} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
           {/* Model cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-            {result.results.map((r, i) => {
-              const color = MODEL_COLORS[r.model] ?? '#fff'
-              const isWinner = i === 0
+          <div className="anim-fade-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+            {compareResult.results.map((r, i) => {
+              const m = META[r.model] ?? { label: r.model, color: '#fff', dim: 'transparent', border: 'var(--b1)' }
+              const winner = i === 0
               return (
-                <div key={r.model} style={{
-                  background: 'var(--surface)', borderRadius: 10,
-                  border: `1px solid ${isWinner ? color : 'var(--border)'}`,
-                  overflow: 'hidden',
+                <div key={r.model} className="card" style={{
+                  border: `1px solid ${winner ? m.border : 'var(--b1)'}`,
+                  boxShadow: winner ? `0 0 30px ${m.color}10` : 'none',
                 }}>
-                  {/* Header */}
-                  <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)',
-                    background: isWinner ? `${color}10` : 'transparent',
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--b1)', background: winner ? m.dim : 'transparent', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-display)', color }}>
-                        #{i + 1} {MODEL_SHORT[r.model] ?? r.model}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: m.color, boxShadow: winner ? `0 0 8px ${m.color}` : 'none' }} />
+                        <span style={{ fontSize: 13, fontWeight: 700, color: m.color }}>{m.label}</span>
                       </div>
-                      <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
-                        {r.vram_estimate_gb} GB VRAM
-                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--t3)', fontFamily: 'var(--ff-mono)' }}>#{i + 1} · {r.vram_estimate_gb} GB VRAM</div>
                     </div>
-                    {isWinner && <Trophy size={16} color={color} />}
+                    {winner && <Trophy size={15} color={m.color} />}
                   </div>
-                  {/* Stats */}
-                  <div style={{ padding: '14px 16px', display: 'grid',
-                    gridTemplateColumns: '1fr 1fr', gap: 12, borderBottom: '1px solid var(--border)' }}>
-                    <Pill label="Median TPS"  value={r.stats.median_tps}    color={color} />
-                    <Pill label="TTFT ms"     value={r.stats.median_ttft_ms} color="var(--blue)" />
-                    <Pill label="Mean Total"  value={`${(r.stats.mean_total_ms/1000).toFixed(1)}s`} color="var(--muted)" />
-                    <Pill label="Avg Tokens"  value={Math.round(r.stats.mean_eval_tokens)} color="var(--muted)" />
+
+                  <div style={{ padding: '10px 14px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, borderBottom: '1px solid var(--b1)' }}>
+                    {[
+                      { l: 'TPS',        v: r.stats.median_tps,                        c: m.color },
+                      { l: 'TTFT',       v: `${r.stats.median_ttft_ms}ms`,             c: 'var(--sky)' },
+                      { l: 'Total avg',  v: `${(r.stats.mean_total_ms/1000).toFixed(1)}s`, c: 'var(--t3)' },
+                      { l: 'Avg tokens', v: Math.round(r.stats.mean_eval_tokens),      c: 'var(--t3)' },
+                    ].map(s => (
+                      <div key={s.l} style={{ background: 'var(--s2)', borderRadius: 6, padding: '8px 10px' }}>
+                        <div className="label" style={{ marginBottom: 3, display: 'block' }}>{s.l}</div>
+                        <span style={{ fontFamily: 'var(--ff-mono)', fontSize: 15, fontWeight: 600, color: s.c }}>{s.v}</span>
+                      </div>
+                    ))}
                   </div>
-                  {/* Response preview */}
-                  <div style={{ padding: '12px 16px' }}>
-                    <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 6,
-                      fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Response preview</div>
-                    <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.5,
-                      maxHeight: 100, overflow: 'hidden', position: 'relative' }}>
+
+                  <div style={{ padding: '10px 14px' }}>
+                    <div className="label" style={{ marginBottom: 5, display: 'block' }}>Response preview</div>
+                    <div style={{ fontSize: 12, color: 'var(--t2)', lineHeight: 1.55, maxHeight: 72, overflow: 'hidden', position: 'relative' }}>
                       {r.response_preview}
-                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 30,
-                        background: 'linear-gradient(transparent, var(--surface))' }} />
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 24, background: 'linear-gradient(transparent, var(--s1))' }} />
                     </div>
                   </div>
                 </div>
@@ -208,6 +186,10 @@ export default function ComparePage() {
             })}
           </div>
         </div>
+      )}
+
+      {!compareResult && !compareLoading && (
+        <EmptyState icon={GitCompare} title="No comparison yet" sub="Enter a prompt and click Compare All Models to run side-by-side benchmarks." />
       )}
     </PageShell>
   )

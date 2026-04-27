@@ -1,240 +1,207 @@
-import { useState } from 'react'
-import { Play, Cpu, Zap, Clock, Activity } from 'lucide-react'
+import { useCallback } from 'react'
+import { Play, Zap, Clock, Activity, Cpu, TrendingUp } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LineChart, Line, ReferenceLine, Cell,
 } from 'recharts'
 import { runBenchmark } from '../api/client'
-import { PageShell, ModelSelector, StatCard, Btn, TextArea } from '../components/ui'
+import { useApp } from '../context/AppContext'
+import { PageShell, ModelSelector, StatCard, EmptyState, ChartTooltip, MODELS } from '../components/ui'
 
-const ACCENT = '#39d353'
-const BLUE   = '#58a6ff'
-const AMBER  = '#e3b341'
-
-const CustomTooltip = ({ active, payload, label }) => {
-  if (!active || !payload?.length) return null
-  return (
-    <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)',
-      borderRadius: 6, padding: '10px 14px', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-      <div style={{ color: 'var(--muted)', marginBottom: 4 }}>Run {label}</div>
-      {payload.map(p => (
-        <div key={p.name} style={{ color: p.color }}>
-          {p.name}: <strong>{typeof p.value === 'number' ? p.value.toFixed(2) : p.value}</strong>
-        </div>
-      ))}
-    </div>
-  )
-}
+const MODEL_COLOR = Object.fromEntries(MODELS.map(m => [m.id, m.color]))
 
 export default function BenchmarkPage() {
-  const [model,   setModel]   = useState('phi3:mini')
-  const [runs,    setRuns]    = useState(3)
-  const [prompt,  setPrompt]  = useState('')
-  const [loading, setLoading] = useState(false)
-  const [result,  setResult]  = useState(null)
-  const [error,   setError]   = useState(null)
+  const {
+    benchResult, setBenchResult,
+    benchLoading, setBenchLoading,
+    benchModel, setBenchModel,
+    benchRuns, setBenchRuns,
+    benchPrompt, setBenchPrompt,
+  } = useApp()
 
-  const go = async () => {
-    setLoading(true)
-    setError(null)
-    setResult(null)
+  const go = useCallback(async () => {
+    setBenchLoading(true)
     try {
-      const res = await runBenchmark(model, runs, prompt || null)
-      setResult(res)
+      const res = await runBenchmark(benchModel, benchRuns, benchPrompt || null)
+      setBenchResult(res)
     } catch (e) {
-      setError(e.message)
+      setBenchResult({ error: e.message })
     } finally {
-      setLoading(false)
+      setBenchLoading(false)
     }
-  }
+  }, [benchModel, benchRuns, benchPrompt])
 
-  const chartData = result?.individual_runs?.map((r, i) => ({
-    run: i + 1,
-    'TPS':  +r.tokens_per_second.toFixed(2),
-    'TTFT': +r.time_to_first_token_ms.toFixed(0),
-    'Tokens': r.eval_tokens,
+  const color  = MODEL_COLOR[benchModel] ?? 'var(--cyan)'
+  const stats  = benchResult?.stats
+  const chartData = benchResult?.individual_runs?.map((r, i) => ({
+    run:    i + 1,
+    TPS:    +r.tokens_per_second.toFixed(2),
+    TTFT:   +r.time_to_first_token_ms.toFixed(0),
+    Tokens: r.eval_tokens,
   })) ?? []
-
-  const stats = result?.stats
 
   return (
     <PageShell
       title="Benchmark"
-      subtitle="Measure inference performance across multiple runs"
+      badge={stats ? { label: `${stats.median_tps} tok/s`, color: 'cyan' } : undefined}
     >
-      {/* Config panel */}
-      <div style={{
-        background: 'var(--surface)', border: '1px solid var(--border)',
-        borderRadius: 10, padding: '20px', marginBottom: 24,
-      }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)',
-          textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>
-          Configuration
-        </div>
+      {/* Config */}
+      <div className="card" style={{ padding: 20, marginBottom: 20 }}>
+        <div className="label" style={{ marginBottom: 14, display: 'block' }}>Configuration</div>
 
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>Model</div>
-          <ModelSelector value={model} onChange={setModel} disabled={loading} />
+          <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 8 }}>Model</div>
+          <ModelSelector value={benchModel} onChange={setBenchModel} disabled={benchLoading} />
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 16, marginBottom: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 150px', gap: 14, marginBottom: 16 }}>
           <div>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>
-              Custom Prompt <span style={{ color: 'var(--muted2)' }}>(optional — uses default if blank)</span>
+            <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 6 }}>Custom prompt <span style={{ color: 'var(--t3)', fontSize: 11 }}>(optional)</span></div>
+            <textarea className="inp" rows={2} value={benchPrompt} onChange={e => setBenchPrompt(e.target.value)} disabled={benchLoading} placeholder="Uses default recursion prompt if blank…" />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 8 }}>Iterations</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[1, 3, 5].map(n => (
+                <button key={n} onClick={() => setBenchRuns(n)} disabled={benchLoading}
+                  style={{
+                    flex: 1, padding: '10px 0', borderRadius: 8, cursor: 'pointer',
+                    border: `1px solid ${benchRuns === n ? color + '60' : 'var(--b1)'}`,
+                    background: benchRuns === n ? color + '15' : 'var(--s2)',
+                    color: benchRuns === n ? color : 'var(--t3)',
+                    fontSize: 16, fontFamily: 'var(--ff-mono)', fontWeight: 700,
+                    transition: 'all 0.13s',
+                  }}>
+                  {n}
+                </button>
+              ))}
             </div>
-            <TextArea
-              value={prompt}
-              onChange={setPrompt}
-              placeholder="Leave blank to use the default benchmark prompt…"
-              rows={2}
-              disabled={loading}
-            />
-          </div>
-          <div>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>Runs (1–10)</div>
-            <input
-              type="number" min={1} max={10} value={runs}
-              onChange={e => setRuns(+e.target.value)}
-              disabled={loading}
-              style={{
-                width: '100%', background: 'var(--surface2)',
-                border: '1px solid var(--border)', borderRadius: 6,
-                padding: '8px 12px', color: 'var(--text)', fontSize: 20,
-                fontFamily: 'var(--font-display)', fontWeight: 800,
-                textAlign: 'center', outline: 'none',
-              }}
-            />
           </div>
         </div>
 
-        <Btn onClick={go} loading={loading} disabled={loading}>
-          <Play size={14} fill="currentColor" />
-          {loading ? `Running ${runs} iterations…` : 'Run Benchmark'}
-        </Btn>
-        {loading && (
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8, fontFamily: 'var(--font-mono)' }}>
-            Each run takes 4–15 seconds on GTX 1660 Ti · Do not close this tab
-          </div>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <button className="btn btn-primary" onClick={go} disabled={benchLoading}>
+            {benchLoading
+              ? <><div className="spinner" style={{ borderTopColor: '#000', borderColor: 'rgba(0,0,0,0.15)' }} /> Running {benchRuns} iterations…</>
+              : <><Play size={13} fill="currentColor" /> Run Benchmark</>
+            }
+          </button>
+          {benchLoading && (
+            <span style={{ fontSize: 12, color: 'var(--t3)', fontFamily: 'var(--ff-mono)' }}>
+              ~{4 * benchRuns}–{15 * benchRuns}s on GTX 1660 Ti
+            </span>
+          )}
+        </div>
       </div>
 
-      {error && (
-        <div style={{ background: '#1a0a0a', border: '1px solid var(--red)',
-          borderRadius: 8, padding: '12px 16px', color: 'var(--red)',
-          fontFamily: 'var(--font-mono)', fontSize: 12, marginBottom: 24 }}>
-          ✕ {error}
+      {/* Error */}
+      {benchResult?.error && (
+        <div style={{ background: 'var(--rose-dim)', border: '1px solid rgba(244,63,94,.25)', borderRadius: 8, padding: '10px 14px', color: 'var(--rose)', fontSize: 13, marginBottom: 20 }}>
+          ✕ {benchResult.error}
         </div>
       )}
 
-      {result && (
-        <div className="fade-up">
-          {/* Summary stats */}
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)',
-            textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>
-            Results — {result.model}
+      {/* Results */}
+      {stats && !benchResult?.error && (
+        <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          {/* Stat cards */}
+          <div className="anim-fade-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+            <StatCard label="Median TPS"   value={stats.median_tps}                  unit="tok/s" color={color}           icon={Zap} />
+            <StatCard label="Mean TTFT"    value={stats.mean_ttft_ms}                unit="ms"    color="var(--sky)"      icon={Clock} />
+            <StatCard label="TPS Range"    value={`${stats.min_tps}–${stats.max_tps}`}           color="var(--t2)"       icon={Activity} />
+            <StatCard label="Avg Tokens"   value={Math.round(stats.mean_eval_tokens)} unit="tok"  color="var(--violet)"   icon={Cpu} />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
-            <StatCard label="Median TPS"  value={stats.median_tps}    unit="tok/s" color={ACCENT} icon={Zap} />
-            <StatCard label="Mean TTFT"   value={stats.mean_ttft_ms}  unit="ms"    color={BLUE}   icon={Clock} />
-            <StatCard label="TPS Range"   value={`${stats.min_tps}–${stats.max_tps}`} color={AMBER} icon={Activity} />
-            <StatCard label="Avg Tokens"  value={Math.round(stats.mean_eval_tokens)} unit="tok"  color="var(--purple)" icon={Cpu} />
-          </div>
-
-          {/* TPS chart */}
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)',
-            borderRadius: 10, padding: '20px', marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-display)',
-              marginBottom: 4 }}>Tokens Per Second — per run</div>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 16 }}>
-              Run 1 is typically slower (cold GPU cache). Median is the fair metric.
+          {/* Charts */}
+          <div className="anim-fade-up" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            {/* TPS bar chart */}
+            <div className="card" style={{ padding: '18px 20px' }}>
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>Tokens / Second</div>
+              <div style={{ fontSize: 11, color: 'var(--t3)', marginBottom: 14 }}>
+                Run 1 is cold start — median removes this outlier
+              </div>
+              <ResponsiveContainer width="100%" height={170}>
+                <BarChart data={chartData} barSize={32}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="run" tick={{ fill: 'var(--t3)', fontSize: 11, fontFamily: 'var(--ff-mono)' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: 'var(--t3)', fontSize: 11, fontFamily: 'var(--ff-mono)' }} axisLine={false} tickLine={false} width={34} />
+                  <Tooltip content={<ChartTooltip suffix=" tok/s" />} />
+                  <ReferenceLine y={stats.median_tps} stroke={color} strokeDasharray="4 4" opacity={0.5} />
+                  <Bar dataKey="TPS" radius={[4, 4, 0, 0]}>
+                    {chartData.map((_, i) => (
+                      <Cell key={i} fill={i === 0 ? 'var(--s4)' : color} opacity={i === 0 ? 0.5 : 0.85} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={chartData} barSize={40}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                <XAxis dataKey="run" tick={{ fill: 'var(--muted)', fontSize: 11 }}
-                  axisLine={false} tickLine={false} label={{ value: 'Run #', position: 'insideBottom', fill: 'var(--muted)', fontSize: 11 }} />
-                <YAxis tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <ReferenceLine y={stats.median_tps} stroke={ACCENT} strokeDasharray="4 4"
-                  label={{ value: `median ${stats.median_tps}`, fill: ACCENT, fontSize: 10, position: 'right' }} />
-                <Bar dataKey="TPS" radius={[4, 4, 0, 0]}>
-                  {chartData.map((_, i) => (
-                    <Cell key={i} fill={i === 0 ? '#2d5a38' : ACCENT} opacity={0.85} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
 
-          {/* TTFT chart */}
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)',
-            borderRadius: 10, padding: '20px', marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-display)',
-              marginBottom: 4 }}>Time To First Token (ms)</div>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 16 }}>
-              Lower is better. Under 500ms feels instant to the user.
+            {/* TTFT line chart */}
+            <div className="card" style={{ padding: '18px 20px' }}>
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>Time To First Token</div>
+              <div style={{ fontSize: 11, color: 'var(--t3)', marginBottom: 14 }}>
+                Under 500ms feels instant · Below dashed line = ✓
+              </div>
+              <ResponsiveContainer width="100%" height={170}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="run" tick={{ fill: 'var(--t3)', fontSize: 11, fontFamily: 'var(--ff-mono)' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: 'var(--t3)', fontSize: 11, fontFamily: 'var(--ff-mono)' }} axisLine={false} tickLine={false} width={40} />
+                  <Tooltip content={<ChartTooltip suffix=" ms" />} />
+                  <ReferenceLine y={500} stroke="var(--amber)" strokeDasharray="4 4" opacity={0.6}
+                    label={{ value: '500ms', fill: 'var(--amber)', fontSize: 10, position: 'right' }} />
+                  <Line type="monotone" dataKey="TTFT" stroke="var(--sky)" strokeWidth={2}
+                    dot={{ fill: 'var(--sky)', r: 4, strokeWidth: 0 }} activeDot={{ r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
-            <ResponsiveContainer width="100%" height={160}>
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                <XAxis dataKey="run" tick={{ fill: 'var(--muted)', fontSize: 11 }}
-                  axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <ReferenceLine y={500} stroke={AMBER} strokeDasharray="4 4"
-                  label={{ value: '500ms threshold', fill: AMBER, fontSize: 10, position: 'right' }} />
-                <Line type="monotone" dataKey="TTFT" stroke={BLUE}
-                  strokeWidth={2} dot={{ fill: BLUE, r: 4 }} activeDot={{ r: 6 }} />
-              </LineChart>
-            </ResponsiveContainer>
           </div>
 
           {/* Raw data table */}
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)',
-            borderRadius: 10, overflow: 'hidden' }}>
-            <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)',
-              fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-display)' }}>
-              Individual Run Details
+          <div className="anim-fade-up card" style={{ overflow: 'hidden' }}>
+            <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--b1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontWeight: 700, fontSize: 13 }}>Individual Runs</span>
+              <span className="tag tag-cyan">{benchResult.model}</span>
             </div>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: 'var(--surface2)' }}>
-                  {['Run', 'TPS', 'TTFT (ms)', 'Total (ms)', 'Tokens', 'Prompt Tokens'].map(h => (
-                    <th key={h} style={{ padding: '8px 16px', textAlign: 'left', fontSize: 10,
-                      fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--muted)',
-                      textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {result.individual_runs.map((r, i) => (
-                  <tr key={i} style={{ borderTop: '1px solid var(--border)' }}>
-                    <td style={{ padding: '10px 16px', fontFamily: 'var(--font-mono)', fontSize: 12,
-                      color: i === 0 ? AMBER : 'var(--muted)' }}>
-                      {i + 1}{i === 0 ? ' ✦ cold' : ''}
-                    </td>
-                    <td style={{ padding: '10px 16px', fontFamily: 'var(--font-mono)', fontSize: 12,
-                      color: ACCENT, fontWeight: 600 }}>{r.tokens_per_second}</td>
-                    <td style={{ padding: '10px 16px', fontFamily: 'var(--font-mono)', fontSize: 12,
-                      color: BLUE }}>{r.time_to_first_token_ms}</td>
-                    <td style={{ padding: '10px 16px', fontFamily: 'var(--font-mono)', fontSize: 12,
-                      color: 'var(--text)' }}>{r.total_duration_ms.toFixed(0)}</td>
-                    <td style={{ padding: '10px 16px', fontFamily: 'var(--font-mono)', fontSize: 12,
-                      color: 'var(--text)' }}>{r.eval_tokens}</td>
-                    <td style={{ padding: '10px 16px', fontFamily: 'var(--font-mono)', fontSize: 12,
-                      color: 'var(--muted)' }}>{r.prompt_tokens}</td>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: 'var(--s2)' }}>
+                    {['Run', 'TPS', 'TTFT (ms)', 'Total (ms)', 'Tokens', 'Prompt Tok'].map(h => (
+                      <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontSize: 10, fontFamily: 'var(--ff-mono)', fontWeight: 600, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '.05em', borderBottom: '1px solid var(--b1)' }}>{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Run ID */}
-          <div style={{ marginTop: 12, fontSize: 10, color: 'var(--muted2)', fontFamily: 'var(--font-mono)' }}>
-            run_id: {result.run_id} · stored in SQLite · visible in GET /benchmark/history
+                </thead>
+                <tbody>
+                  {benchResult.individual_runs.map((r, i) => (
+                    <tr key={i}
+                      style={{ borderBottom: i < benchResult.individual_runs.length - 1 ? '1px solid var(--b1)' : 'none', transition: 'background 0.1s' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--s2)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <td style={{ padding: '9px 14px', fontFamily: 'var(--ff-mono)', fontSize: 12, color: i === 0 ? 'var(--amber)' : 'var(--t3)' }}>
+                        #{i + 1} {i === 0 ? '· cold' : ''}
+                      </td>
+                      <td style={{ padding: '9px 14px', fontFamily: 'var(--ff-mono)', fontSize: 12, color, fontWeight: 600 }}>{r.tokens_per_second}</td>
+                      <td style={{ padding: '9px 14px', fontFamily: 'var(--ff-mono)', fontSize: 12, color: 'var(--sky)' }}>{r.time_to_first_token_ms}</td>
+                      <td style={{ padding: '9px 14px', fontFamily: 'var(--ff-mono)', fontSize: 12, color: 'var(--t2)' }}>{r.total_duration_ms.toFixed(0)}</td>
+                      <td style={{ padding: '9px 14px', fontFamily: 'var(--ff-mono)', fontSize: 12, color: 'var(--t2)' }}>{r.eval_tokens}</td>
+                      <td style={{ padding: '9px 14px', fontFamily: 'var(--ff-mono)', fontSize: 12, color: 'var(--t3)' }}>{r.prompt_tokens}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ padding: '8px 14px', borderTop: '1px solid var(--b1)', fontSize: 10, color: 'var(--t3)', fontFamily: 'var(--ff-mono)' }}>
+              run_id: {benchResult.run_id}
+            </div>
           </div>
         </div>
+      )}
+
+      {!benchResult && !benchLoading && (
+        <EmptyState icon={TrendingUp} title="No benchmark data" sub="Pick a model and click Run Benchmark to measure inference performance on your GPU." />
       )}
     </PageShell>
   )
