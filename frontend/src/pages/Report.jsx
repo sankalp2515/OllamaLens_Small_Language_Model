@@ -34,9 +34,11 @@ export default function ReportPage() {
       actions={
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-ghost btn-sm" onClick={load} disabled={reportLoading}>
-            <RefreshCw size={12} style={{ animation: reportLoading ? 'spin 0.7s linear infinite' : 'none' }} /> Refresh
+            <RefreshCw size={12} style={{ animation: reportLoading ? 'spin .7s linear infinite' : 'none' }} />
+            Refresh
           </button>
-          <button className="btn btn-primary btn-sm" onClick={downloadMd} disabled={reportLoading || !report || report?.error}>
+          <button className="btn btn-primary btn-sm" onClick={downloadMd}
+            disabled={reportLoading || !report || !!report?.error}>
             <Download size={12} /> Export Markdown
           </button>
         </div>
@@ -49,29 +51,31 @@ export default function ReportPage() {
       )}
 
       {report?.error && (
-        <div style={{ background: 'var(--rose-dim)', border: '1px solid rgba(244,63,94,.25)', borderRadius: 8, padding: '10px 14px', color: 'var(--rose)', fontSize: 13 }}>
+        <div style={{ background: 'var(--rose-lt)', border: '1px solid var(--rose-b)', borderRadius: 10, padding: '10px 14px', color: 'var(--rose)', fontSize: 13 }}>
           ✕ {report.error}
         </div>
       )}
 
       {report && !report.error && !reportLoading && (
-        <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-          {/* Meta */}
+          {/* Meta tags */}
           <div className="anim-fade-up" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <span className="tag tag-cyan">Generated {new Date(report.generated_at).toLocaleString()}</span>
-            <span className="tag tag-sky">{report.raw_stats.length} models</span>
-            <span className="tag tag-emerald">{report.raw_stats.reduce((s, r) => s + r.runs, 0)} total runs</span>
+            <span className="tag tag-coral">Generated {new Date(report.generated_at).toLocaleString()}</span>
+            <span className="tag tag-teal">{report.raw_stats.length} models benchmarked</span>
+            <span className="tag tag-sage">{report.raw_stats.reduce((s, r) => s + r.runs, 0)} total runs</span>
           </div>
 
           {/* Hardware */}
           <div className="anim-fade-up card" style={{ overflow: 'hidden' }}>
-            <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--b1)', fontWeight: 700, fontSize: 13 }}>Hardware Profile</div>
-            <div style={{ padding: '14px 18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 10 }}>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--b1)', fontWeight: 700, fontSize: 14, letterSpacing: '-.3px' }}>
+              Hardware Profile
+            </div>
+            <div style={{ padding: '16px 20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 10 }}>
               {Object.entries(report.hardware).map(([k, v]) => (
-                <div key={k} style={{ background: 'var(--s2)', border: '1px solid var(--b1)', borderRadius: 8, padding: '10px 12px' }}>
-                  <div className="label" style={{ marginBottom: 3, display: 'block' }}>{k.replace(/_/g, ' ')}</div>
-                  <div style={{ fontSize: 13, fontFamily: 'var(--ff-mono)', color: 'var(--t1)' }}>{v}</div>
+                <div key={k} style={{ background: 'var(--canvas)', border: '1px solid var(--b1)', borderRadius: 9, padding: '10px 12px' }}>
+                  <div className="label" style={{ marginBottom: 4, display: 'block' }}>{k.replace(/_/g, ' ')}</div>
+                  <div style={{ fontSize: 13, fontFamily: 'var(--ff-mono)', color: 'var(--t1)', fontWeight: 500 }}>{v}</div>
                 </div>
               ))}
             </div>
@@ -80,12 +84,14 @@ export default function ReportPage() {
           {/* Ranking table */}
           {report.raw_stats.length > 0 && (
             <div className="anim-fade-up card" style={{ overflow: 'hidden' }}>
-              <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--b1)', fontWeight: 700, fontSize: 13 }}>Performance Ranking</div>
+              <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--b1)', fontWeight: 700, fontSize: 14, letterSpacing: '-.3px' }}>
+                Performance Ranking
+              </div>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ background: 'var(--s2)' }}>
+                  <tr style={{ background: 'var(--canvas)' }}>
                     {['Rank', 'Model', 'Median TPS', 'TTFT', 'TPS Range', 'Runs'].map(h => (
-                      <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontSize: 10, fontFamily: 'var(--ff-mono)', fontWeight: 600, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '.05em', borderBottom: '1px solid var(--b1)' }}>{h}</th>
+                      <th key={h} style={{ padding: '8px 16px', textAlign: 'left', fontSize: 10, fontFamily: 'var(--ff-mono)', fontWeight: 600, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '.05em', borderBottom: '1px solid var(--b1)' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -94,30 +100,31 @@ export default function ReportPage() {
                     const c = MODEL_COLOR[s.model] ?? 'var(--t2)'
                     const pct = (s.median_tps / Math.max(...report.raw_stats.map(r => r.median_tps))) * 100
                     return (
-                      <tr key={s.model} style={{ borderBottom: i < report.raw_stats.length - 1 ? '1px solid var(--b1)' : 'none', transition: 'background 0.1s' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--s2)'}
+                      <tr key={s.model}
+                        style={{ borderBottom: i < report.raw_stats.length - 1 ? '1px solid var(--b0)' : 'none', transition: 'background .1s' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--canvas)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                       >
-                        <td style={{ padding: '11px 14px', fontFamily: 'var(--ff-mono)', fontSize: 12, color: i === 0 ? 'var(--cyan)' : 'var(--t3)' }}>
+                        <td style={{ padding: '11px 16px', fontFamily: 'var(--ff-mono)', fontSize: 12, color: i === 0 ? 'var(--coral)' : 'var(--t4)' }}>
                           #{i + 1}{i === 0 ? ' 🏆' : ''}
                         </td>
-                        <td style={{ padding: '11px 14px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        <td style={{ padding: '11px 16px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <div style={{ width: 7, height: 7, borderRadius: '50%', background: c, flexShrink: 0 }} />
                             <span style={{ fontSize: 12, fontFamily: 'var(--ff-mono)', color: 'var(--t1)' }}>{s.model}</span>
                           </div>
                         </td>
-                        <td style={{ padding: '11px 14px' }}>
+                        <td style={{ padding: '11px 16px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span style={{ fontFamily: 'var(--ff-mono)', fontSize: 14, fontWeight: 700, color: c }}>{s.median_tps}</span>
-                            <div style={{ width: 60, height: 3, background: 'var(--s4)', borderRadius: 2 }}>
+                            <div style={{ width: 56, height: 3, background: 'var(--s4)', borderRadius: 2 }}>
                               <div style={{ width: `${pct}%`, height: '100%', background: c, borderRadius: 2 }} />
                             </div>
                           </div>
                         </td>
-                        <td style={{ padding: '11px 14px', fontFamily: 'var(--ff-mono)', fontSize: 12, color: 'var(--sky)' }}>{s.median_ttft_ms}ms</td>
-                        <td style={{ padding: '11px 14px', fontFamily: 'var(--ff-mono)', fontSize: 12, color: 'var(--t3)' }}>{s.min_tps}–{s.max_tps}</td>
-                        <td style={{ padding: '11px 14px', fontFamily: 'var(--ff-mono)', fontSize: 12, color: 'var(--t3)' }}>{s.runs}</td>
+                        <td style={{ padding: '11px 16px', fontFamily: 'var(--ff-mono)', fontSize: 12, color: 'var(--teal)' }}>{s.median_ttft_ms}ms</td>
+                        <td style={{ padding: '11px 16px', fontFamily: 'var(--ff-mono)', fontSize: 12, color: 'var(--t3)' }}>{s.min_tps}–{s.max_tps}</td>
+                        <td style={{ padding: '11px 16px', fontFamily: 'var(--ff-mono)', fontSize: 12, color: 'var(--t4)' }}>{s.runs}</td>
                       </tr>
                     )
                   })}
@@ -126,23 +133,27 @@ export default function ReportPage() {
             </div>
           )}
 
-          {/* Report sections as accordions */}
-          <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div className="label" style={{ marginBottom: 6, display: 'block' }}>Analysis Sections</div>
+          {/* Sections */}
+          <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="label" style={{ marginBottom: 4, display: 'block' }}>Analysis</div>
             {report.sections.map((s, i) => (
-              <details key={i} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--b1)' }}>
+              <details key={i} style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--b1)', boxShadow: 'var(--shadow-xs)' }}>
                 <summary style={{
-                  display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px',
-                  background: 'var(--s1)', cursor: 'pointer', listStyle: 'none',
-                  fontSize: 13, fontWeight: 600, color: 'var(--t1)', transition: 'background 0.13s',
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '12px 16px', background: 'var(--s1)',
+                  cursor: 'pointer', listStyle: 'none',
+                  fontSize: 14, fontWeight: 600, letterSpacing: '-.2px',
+                  color: 'var(--t1)', transition: 'background .13s',
                 }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--s2)'}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--canvas)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'var(--s1)'}
                 >
-                  <ChevronRight size={13} color="var(--cyan)" style={{ flexShrink: 0 }} />
+                  <div style={{ width: 22, height: 22, borderRadius: 6, background: 'var(--coral-lt)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                    <ChevronRight size={12} color="var(--coral)" />
+                  </div>
                   {s.title}
                 </summary>
-                <div style={{ padding: '12px 14px', background: 'var(--s2)', fontSize: 13, color: 'var(--t2)', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>
+                <div style={{ padding: '14px 16px', background: 'var(--canvas)', borderTop: '1px solid var(--b0)', fontSize: 13, color: 'var(--t2)', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>
                   {s.content}
                 </div>
               </details>
@@ -150,13 +161,13 @@ export default function ReportPage() {
           </div>
 
           {report.raw_stats.length === 0 && (
-            <EmptyState icon={BarChart2} title="No benchmark data" sub="Run benchmarks first, then come back here for the full analysis report." />
+            <EmptyState icon={BarChart2} title="No benchmark data" sub="Run benchmarks first, then return here for the full analysis." />
           )}
         </div>
       )}
 
       {!report && !reportLoading && (
-        <EmptyState icon={FileText} title="Report not loaded" sub="Click Refresh to generate the report from your benchmark data." />
+        <EmptyState icon={FileText} title="Report not loaded" sub="Click Refresh to generate from your benchmark data." />
       )}
     </PageShell>
   )

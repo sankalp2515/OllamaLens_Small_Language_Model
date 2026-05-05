@@ -102,6 +102,7 @@ class ChatRequest(BaseModel):
         default=True,
         description="If True, response is delivered as SSE chunks",
     )
+    tools_enabled: bool           = True   # ← NEW: skip ReAct loop when False
     options: Optional[dict] = Field(
         default=None,
         description="Raw Ollama options (temperature, top_p, seed, …)",
